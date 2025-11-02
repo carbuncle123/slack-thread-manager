@@ -128,9 +128,12 @@ class ClaudeAgentClient:
             # 回答から関連スレッド情報を抽出
             related_threads = self._extract_related_threads(answer_text)
 
+            # 回答内容から信頼度を計算
+            confidence = self._calculate_confidence(answer_text, related_threads, user_question)
+
             return {
                 "answer": answer_text,
-                "confidence": 0.85,  # 実際には回答内容から推定
+                "confidence": confidence,
                 "related_threads": related_threads
             }
 
@@ -138,23 +141,102 @@ class ClaudeAgentClient:
             logger.error(f"Claude Agent query failed: {e}", exc_info=True)
             raise
 
+    def _calculate_confidence(self, answer_text: str, related_threads: List[Dict[str, Any]],
+                              user_question: str) -> float:
+        """
+        回答内容から信頼度を計算
+
+        評価基準:
+        - 関連スレッドの数
+        - 回答の長さと詳細度
+        - 具体的な情報（ID、タイトル等）の有無
+        - ネガティブワード（見つかりませんでした、不明等）の有無
+        """
+        confidence = 0.5  # ベーススコア
+
+        # 1. 関連スレッドによる加点 (最大+0.3)
+        if related_threads:
+            # スレッド数に応じて加点（1-3個で最大）
+            thread_bonus = min(len(related_threads) * 0.1, 0.3)
+            confidence += thread_bonus
+
+        # 2. 回答の詳細度による加点 (最大+0.2)
+        answer_length = len(answer_text)
+        if answer_length > 500:
+            confidence += 0.2
+        elif answer_length > 200:
+            confidence += 0.1
+        elif answer_length > 100:
+            confidence += 0.05
+
+        # 3. 具体的な情報の有無による加点 (最大+0.15)
+        has_thread_id = bool(re.search(r'thread_[a-z0-9]+|[TC][A-Z0-9]+', answer_text))
+        has_url = 'https://' in answer_text or 'http://' in answer_text
+        has_structured_info = '**' in answer_text or '##' in answer_text  # マークダウン構造
+
+        if has_thread_id:
+            confidence += 0.05
+        if has_url:
+            confidence += 0.05
+        if has_structured_info:
+            confidence += 0.05
+
+        # 4. ネガティブワードによる減点 (最大-0.3)
+        negative_patterns = [
+            r'見つかりませんでした',
+            r'該当する.*?ありません',
+            r'不明',
+            r'わかりません',
+            r'確認できません',
+            r'存在しません'
+        ]
+
+        negative_count = 0
+        for pattern in negative_patterns:
+            if re.search(pattern, answer_text):
+                negative_count += 1
+
+        if negative_count > 0:
+            confidence -= min(negative_count * 0.1, 0.3)
+
+        # 5. 質問との関連性チェック (簡易版)
+        # 質問のキーワードが回答に含まれているかチェック
+        question_keywords = [word for word in user_question.split() if len(word) > 2]
+        keyword_matches = sum(1 for kw in question_keywords if kw in answer_text)
+
+        if question_keywords and keyword_matches / len(question_keywords) > 0.5:
+            confidence += 0.1
+
+        # 最終的に0.0-1.0の範囲に収める
+        confidence = max(0.0, min(1.0, confidence))
+
+        return round(confidence, 2)
+
     def _extract_related_threads(self, answer_text: str) -> List[Dict[str, Any]]:
         """
         回答テキストからスレッド情報を抽出
         """
         related_threads = []
-        # 簡易的な実装: "ID: " パターンを検索
-        thread_id_pattern = r'ID:\s*([TC][A-Z0-9]+)'
-        matches = re.findall(thread_id_pattern, answer_text)
+        # 改善: より多くのパターンでスレッドIDを検索
+        thread_id_patterns = [
+            r'スレッドID[:\s]*`?([a-z0-9_]+)`?',  # スレッドID: thread_xxx
+            r'ID[:\s]*`?([TC][A-Z0-9]+)`?',        # ID: Txxx or Cxxx
+            r'`(thread_[a-z0-9]+)`',                # `thread_xxx`
+        ]
 
-        for thread_id in matches:
-            thread_info = read_thread_info(thread_id)
-            if "error" not in thread_info:
-                related_threads.append({
-                    "thread_id": thread_id,
-                    "title": thread_info.get("title", ""),
-                    "url": thread_info.get("url", "")
-                })
+        seen_ids = set()
+        for pattern in thread_id_patterns:
+            matches = re.findall(pattern, answer_text, re.IGNORECASE)
+            for thread_id in matches:
+                if thread_id not in seen_ids:
+                    seen_ids.add(thread_id)
+                    thread_info = read_thread_info(thread_id)
+                    if "error" not in thread_info:
+                        related_threads.append({
+                            "thread_id": thread_id,
+                            "title": thread_info.get("title", ""),
+                            "url": thread_info.get("url", "")
+                        })
 
         return related_threads
 
