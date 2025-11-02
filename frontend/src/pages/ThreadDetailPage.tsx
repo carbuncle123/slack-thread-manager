@@ -1,11 +1,14 @@
-import { useQuery } from '@tanstack/react-query';
+import { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
-import { threadsApi } from '../lib/api';
+import { threadsApi, summariesApi } from '../lib/api';
 import dayjs from 'dayjs';
 import './ThreadDetailPage.css';
 
 export default function ThreadDetailPage() {
   const { threadId } = useParams<{ threadId: string }>();
+  const queryClient = useQueryClient();
+  const [activeTab, setActiveTab] = useState<'daily' | 'topic'>('daily');
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', threadId],
@@ -17,6 +20,21 @@ export default function ThreadDetailPage() {
     queryKey: ['messages', threadId],
     queryFn: () => threadsApi.getMessages(threadId!),
     enabled: !!threadId,
+  });
+
+  const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
+    queryKey: ['summary', threadId],
+    queryFn: () => summariesApi.getSummary(threadId!),
+    enabled: !!threadId,
+    retry: false,
+  });
+
+  const generateSummaryMutation = useMutation({
+    mutationFn: () => summariesApi.generateSummary(threadId!, false),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['summary', threadId] });
+      queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+    },
   });
 
   if (threadLoading || messagesLoading) {
@@ -78,6 +96,123 @@ export default function ThreadDetailPage() {
                   {tag}
                 </span>
               ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* 要約セクション */}
+      <div className="summary-section">
+        <div className="section-header">
+          <h3>要約</h3>
+          {!summary && !summaryLoading && (
+            <button
+              onClick={() => generateSummaryMutation.mutate()}
+              disabled={generateSummaryMutation.isPending}
+              className="btn btn-primary"
+            >
+              {generateSummaryMutation.isPending ? '生成中...' : '要約を生成'}
+            </button>
+          )}
+          {summary && (
+            <button
+              onClick={() => generateSummaryMutation.mutate()}
+              disabled={generateSummaryMutation.isPending}
+              className="btn btn-secondary"
+            >
+              {generateSummaryMutation.isPending ? '再生成中...' : '要約を再生成'}
+            </button>
+          )}
+        </div>
+
+        {summaryLoading && <div className="loading">要約を読み込み中...</div>}
+
+        {generateSummaryMutation.isPending && (
+          <div className="summary-generating">
+            <p>AIが要約を生成しています。しばらくお待ちください...</p>
+          </div>
+        )}
+
+        {summaryError && !summaryLoading && !summary && (
+          <div className="summary-empty">
+            <p>要約が生成されていません。「要約を生成」ボタンをクリックしてください。</p>
+          </div>
+        )}
+
+        {summary && !generateSummaryMutation.isPending && (
+          <div className="summary-content">
+            <div className="summary-overview">
+              <div className="summary-topic">
+                <strong>トピック:</strong> {summary.topic}
+              </div>
+              <div className="summary-description">
+                {summary.overview}
+              </div>
+              <div className="summary-meta">
+                最終更新: {dayjs(summary.last_updated).format('YYYY/MM/DD HH:mm')}
+              </div>
+            </div>
+
+            <div className="summary-tabs">
+              <button
+                className={`tab ${activeTab === 'daily' ? 'active' : ''}`}
+                onClick={() => setActiveTab('daily')}
+              >
+                日次要約 ({summary.daily_summaries.length})
+              </button>
+              <button
+                className={`tab ${activeTab === 'topic' ? 'active' : ''}`}
+                onClick={() => setActiveTab('topic')}
+              >
+                トピック別要約 ({summary.topic_summaries.length})
+              </button>
+            </div>
+
+            <div className="summary-tab-content">
+              {activeTab === 'daily' && (
+                <div className="daily-summaries">
+                  {summary.daily_summaries.map((daily, index) => (
+                    <div key={index} className="daily-summary-item">
+                      <div className="daily-header">
+                        <span className="daily-date">{daily.date}</span>
+                        <span className="daily-count">{daily.message_count}件のメッセージ</span>
+                      </div>
+                      <p className="daily-summary">{daily.summary}</p>
+                      {daily.key_points.length > 0 && (
+                        <div className="key-points">
+                          <strong>重要ポイント:</strong>
+                          <ul>
+                            {daily.key_points.map((point, i) => (
+                              <li key={i}>{point}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activeTab === 'topic' && (
+                <div className="topic-summaries">
+                  {summary.topic_summaries.map((topic, index) => (
+                    <div key={index} className="topic-summary-item">
+                      <div className="topic-header">
+                        <span className="topic-name">{topic.topic_name}</span>
+                        <span className={`topic-status status-${topic.status}`}>
+                          {topic.status}
+                        </span>
+                      </div>
+                      <p className="topic-summary">{topic.summary}</p>
+                      {topic.conclusion && (
+                        <div className="topic-conclusion">
+                          <strong>結論:</strong> {topic.conclusion}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}

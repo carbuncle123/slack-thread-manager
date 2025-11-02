@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { Thread, ThreadListResponse, ThreadCreate, ThreadUpdate, Message, SyncResponse } from '../types';
+import type { Thread, ThreadListResponse, ThreadCreate, ThreadUpdate, Message, SyncResponse, ThreadSummary, SummaryResponse } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -68,5 +68,27 @@ export const threadsApi = {
   syncAll: async (): Promise<any> => {
     const response = await api.post('/api/sync/all');
     return response.data;
+  },
+};
+
+export const summariesApi = {
+  // 要約取得
+  getSummary: async (threadId: string): Promise<ThreadSummary> => {
+    const response = await api.get<ThreadSummary>(`/api/summaries/${threadId}`);
+    return response.data;
+  },
+
+  // 要約生成
+  generateSummary: async (threadId: string, forceRegenerate: boolean = false): Promise<SummaryResponse> => {
+    const response = await api.post<SummaryResponse>('/api/summaries/generate', {
+      thread_id: threadId,
+      force_regenerate: forceRegenerate,
+    });
+    return response.data;
+  },
+
+  // 要約削除
+  deleteSummary: async (threadId: string): Promise<void> => {
+    await api.delete(`/api/summaries/${threadId}`);
   },
 };

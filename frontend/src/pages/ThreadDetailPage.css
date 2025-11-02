@@ -125,3 +125,207 @@
   border: 1px solid var(--border-color);
   border-radius: 8px;
 }
+
+/* 要約セクション */
+.summary-section {
+  margin-bottom: 2rem;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.summary-generating,
+.summary-empty {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 2rem;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.summary-content {
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 1.5rem;
+}
+
+.summary-overview {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.summary-topic {
+  font-size: 1.1rem;
+  margin-bottom: 0.5rem;
+}
+
+.summary-description {
+  margin: 1rem 0;
+  line-height: 1.6;
+}
+
+.summary-meta {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.75rem;
+}
+
+.summary-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.summary-tabs .tab {
+  padding: 0.75rem 1.5rem;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: all 0.2s;
+  margin-bottom: -2px;
+}
+
+.summary-tabs .tab:hover {
+  color: var(--primary-color);
+}
+
+.summary-tabs .tab.active {
+  color: var(--primary-color);
+  border-bottom-color: var(--primary-color);
+}
+
+.summary-tab-content {
+  margin-top: 1rem;
+}
+
+/* 日次要約 */
+.daily-summaries {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.daily-summary-item {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.daily-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.daily-date {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.daily-count {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.daily-summary {
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+
+.key-points {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.key-points ul {
+  margin: 0.5rem 0 0 0;
+  padding-left: 1.5rem;
+}
+
+.key-points li {
+  margin: 0.25rem 0;
+  line-height: 1.5;
+}
+
+/* トピック別要約 */
+.topic-summaries {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.topic-summary-item {
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.topic-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.topic-name {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--primary-color);
+}
+
+.topic-status {
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: #e9ecef;
+  color: var(--text-color);
+}
+
+.topic-status.status-議論中 {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.topic-status.status-解決済み {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.topic-status.status-保留中 {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.topic-summary {
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+
+.topic-conclusion {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  font-style: italic;
+  color: var(--text-muted);
+}

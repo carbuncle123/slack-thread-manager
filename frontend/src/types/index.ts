@@ -60,3 +60,38 @@ export interface SyncResponse {
   new_messages: number;
   synced_at: string;
 }
+
+// 要約関連の型
+
+export interface DailySummaryItem {
+  date: string;
+  message_count: number;
+  summary: string;
+  key_points: string[];
+  participants: string[];
+}
+
+export interface TopicSummaryItem {
+  topic_name: string;
+  status: string;
+  summary: string;
+  conclusion: string | null;
+  related_message_timestamps: string[];
+  participants: string[];
+}
+
+export interface ThreadSummary {
+  thread_id: string;
+  topic: string;
+  overview: string;
+  daily_summaries: DailySummaryItem[];
+  topic_summaries: TopicSummaryItem[];
+  last_updated: string;
+  message_count_at_summary: number;
+}
+
+export interface SummaryResponse {
+  success: boolean;
+  summary: ThreadSummary | null;
+  message: string;
+}
