@@ -14,8 +14,7 @@ import type {
   RegisterThreadsResponse,
   QueryRequest,
   QueryResponse,
-  SearchHistoryItem,
-  BookmarkRequest
+  SearchHistoryItem
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -33,8 +32,12 @@ export const threadsApi = {
     tags?: string;
     is_read?: boolean;
     search?: string;
+    date_from?: string;
+    date_to?: string;
     sort_by?: string;
     sort_order?: string;
+    limit?: number;
+    offset?: number;
   }): Promise<ThreadListResponse> => {
     const response = await api.get<ThreadListResponse>('/api/threads', { params });
     return response.data;

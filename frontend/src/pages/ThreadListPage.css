@@ -97,3 +97,129 @@
   padding-top: 1rem;
   border-top: 1px solid var(--border-color);
 }
+
+/* 結果サマリー */
+.results-summary {
+  margin: 1rem 0;
+  padding: 0.75rem 1rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  color: #495057;
+}
+
+.results-summary p {
+  margin: 0;
+}
+
+/* テーブルレイアウト */
+.thread-table-container {
+  overflow-x: auto;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.thread-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.thread-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.thread-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+  font-size: 0.875rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.thread-table th.sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+.thread-table th.sortable:hover {
+  background-color: #e9ecef;
+}
+
+.sort-indicator {
+  color: var(--primary-color);
+  font-size: 0.75rem;
+  margin-left: 0.25rem;
+}
+
+.thread-table td {
+  padding: 1rem;
+  border-top: 1px solid #dee2e6;
+  font-size: 0.875rem;
+}
+
+.thread-table tbody tr {
+  transition: background-color 0.2s;
+}
+
+.thread-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.thread-table tbody tr.unread {
+  background-color: #fff8e1;
+}
+
+.thread-table tbody tr.unread:hover {
+  background-color: #fff3cd;
+}
+
+.thread-title-link {
+  color: var(--text-color);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.thread-title-link:hover {
+  color: var(--primary-color);
+  text-decoration: underline;
+}
+
+.thread-summary-cell {
+  max-width: 300px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-muted);
+}
+
+.text-center {
+  text-align: center;
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 768px) {
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .thread-table {
+    font-size: 0.75rem;
+  }
+
+  .thread-table th,
+  .thread-table td {
+    padding: 0.5rem;
+  }
+
+  .thread-summary-cell {
+    max-width: 150px;
+  }
+}

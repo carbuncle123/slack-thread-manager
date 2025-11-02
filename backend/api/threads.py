@@ -36,8 +36,12 @@ async def get_threads(
     tags: Optional[str] = Query(None, description="カンマ区切りのタグ"),
     is_read: Optional[bool] = Query(None, description="既読/未読フィルタ"),
     search: Optional[str] = Query(None, description="検索キーワード"),
+    date_from: Optional[str] = Query(None, description="開始日 (YYYY-MM-DD)"),
+    date_to: Optional[str] = Query(None, description="終了日 (YYYY-MM-DD)"),
     sort_by: str = Query("updated_at", description="ソート項目"),
-    sort_order: str = Query("desc", description="ソート順序")
+    sort_order: str = Query("desc", description="ソート順序 (asc/desc)"),
+    limit: int = Query(20, ge=1, le=100, description="取得件数"),
+    offset: int = Query(0, ge=0, description="オフセット")
 ):
     """スレッド一覧を取得"""
     if thread_manager is None:
@@ -50,15 +54,23 @@ async def get_threads(
     threads = thread_manager.filter_threads(
         tags=tag_list,
         is_read=is_read,
-        search=search
+        search=search,
+        date_from=date_from,
+        date_to=date_to
     )
 
     # ソート
     threads = thread_manager.sort_threads(threads, sort_by, sort_order)
 
+    # 総数を保存
+    total = len(threads)
+
+    # ページネーション
+    threads = threads[offset:offset + limit]
+
     return ThreadListResponse(
         threads=threads,
-        total=len(threads)
+        total=total
     )
 
 

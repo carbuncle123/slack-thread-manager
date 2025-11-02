@@ -157,9 +157,12 @@ class ThreadManager:
         self,
         tags: Optional[List[str]] = None,
         is_read: Optional[bool] = None,
-        search: Optional[str] = None
+        search: Optional[str] = None,
+        date_from: Optional[str] = None,
+        date_to: Optional[str] = None
     ) -> List[Thread]:
         """スレッドをフィルタリング"""
+        from datetime import datetime
         threads = self.thread_repo.get_all()
 
         # タグフィルタ
@@ -181,6 +184,30 @@ class ThreadManager:
                 if search_lower in t.title.lower() or
                    search_lower in t.summary.topic.lower()
             ]
+
+        # 日付範囲フィルタ (updated_atを基準)
+        if date_from:
+            try:
+                date_from_dt = datetime.fromisoformat(date_from.replace('Z', '+00:00'))
+                threads = [
+                    t for t in threads
+                    if datetime.fromisoformat(t.updated_at.replace('Z', '+00:00')) >= date_from_dt
+                ]
+            except (ValueError, AttributeError):
+                pass  # 不正な日付形式の場合はスキップ
+
+        if date_to:
+            try:
+                # 終了日は23:59:59まで含める
+                date_to_dt = datetime.fromisoformat(date_to.replace('Z', '+00:00'))
+                from datetime import timedelta
+                date_to_dt = date_to_dt + timedelta(days=1, microseconds=-1)
+                threads = [
+                    t for t in threads
+                    if datetime.fromisoformat(t.updated_at.replace('Z', '+00:00')) <= date_to_dt
+                ]
+            except (ValueError, AttributeError):
+                pass  # 不正な日付形式の場合はスキップ
 
         return threads
 
