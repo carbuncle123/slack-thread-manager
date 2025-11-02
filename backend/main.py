@@ -16,11 +16,15 @@ from services.thread_manager import ThreadManager
 from services.chatgpt_client import ChatGPTClient
 from services.summary_generator import SummaryGenerator
 from services.thread_discovery import ThreadDiscoveryService
-from api import threads, sync, config as config_api, summaries, discover
+from api import threads, sync, config as config_api, summaries, discover, search
+from services.claude_agent import ClaudeAgentClient
 from utils.logger import setup_logger
 
 # 設定読み込み
 settings = Settings()
+
+# Claude Agent初期化 (ローカルClaude Code SDK版)
+search.claude_agent = ClaudeAgentClient()
 
 # ロガーセットアップ
 logger = setup_logger("slack_thread_manager", settings.log_level)
@@ -119,6 +123,7 @@ app.include_router(threads.router)
 app.include_router(sync.router)
 app.include_router(config_api.router)
 app.include_router(discover.router, prefix="/api/discover", tags=["discover"])
+app.include_router(search.router, prefix="/api", tags=["search"])
 
 
 @app.get("/")

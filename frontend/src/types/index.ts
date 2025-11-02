@@ -48,6 +48,40 @@ export interface ThreadCreate {
   tags: string[];
 }
 
+// 検索・質問関連の型定義
+export interface QueryRequest {
+  query: string;
+}
+
+export interface RelatedThread {
+  thread_id: string;
+  title: string;
+  url?: string;
+}
+
+export interface QueryResponse {
+  query_id: string;
+  query: string;
+  answer: string;
+  related_threads: RelatedThread[];
+  confidence: number;
+  created_at: string;
+}
+
+export interface SearchHistoryItem {
+  query_id: string;
+  query: string;
+  answer: string;
+  related_threads: RelatedThread[];
+  confidence: number;
+  created_at: string;
+  bookmarked: boolean;
+}
+
+export interface BookmarkRequest {
+  bookmarked: boolean;
+}
+
 export interface ThreadUpdate {
   title?: string;
   tags?: string[];

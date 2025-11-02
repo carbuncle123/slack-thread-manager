@@ -1,6 +1,6 @@
 import httpx
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from models.message import Message, Reaction
 from utils.logger import get_logger
@@ -172,8 +172,12 @@ class SlackClient:
         days_back: int = 7
     ) -> List[Dict[str, Any]]:
         """特定のメンションを含むスレッドを検出"""
-        # search.messagesを使用してメンションを検索
-        query = f"in:<#{channel_id}> <@{user_id}>"
+        # 検索期間の開始日を計算
+        start_date = datetime.now() - timedelta(days=days_back)
+        date_filter = start_date.strftime("after:%Y-%m-%d")
+        
+        # search.messagesを使用してメンションを検索（日付制限付き）
+        query = f"in:<#{channel_id}> <@{user_id}> {date_filter}"
 
         try:
             matches = await self.search_messages(query, count=100)
@@ -195,7 +199,7 @@ class SlackClient:
                         "ts": match.get("ts")
                     })
 
-            logger.info(f"Found {len(threads)} threads with mention")
+            logger.info(f"Found {len(threads)} threads with mention in the past {days_back} days")
             return threads
 
         except Exception as e:

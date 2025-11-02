@@ -11,7 +11,11 @@ import type {
   DiscoverRequest,
   DiscoverResponse,
   RegisterThreadsRequest,
-  RegisterThreadsResponse
+  RegisterThreadsResponse,
+  QueryRequest,
+  QueryResponse,
+  SearchHistoryItem,
+  BookmarkRequest
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -117,5 +121,35 @@ export const discoverApi = {
   registerThreads: async (request: RegisterThreadsRequest): Promise<RegisterThreadsResponse> => {
     const response = await api.post<RegisterThreadsResponse>('/api/discover/register', request);
     return response.data;
+  },
+};
+
+export const searchApi = {
+  // 自然言語質問
+  query: async (request: QueryRequest): Promise<QueryResponse> => {
+    const response = await api.post<QueryResponse>('/api/search/query', request);
+    return response.data;
+  },
+
+  // 検索履歴取得
+  getHistory: async (): Promise<SearchHistoryItem[]> => {
+    const response = await api.get<SearchHistoryItem[]>('/api/search/history');
+    return response.data;
+  },
+
+  // ブックマーク済み検索履歴取得
+  getBookmarks: async (): Promise<SearchHistoryItem[]> => {
+    const response = await api.get<SearchHistoryItem[]>('/api/search/history/bookmarks');
+    return response.data;
+  },
+
+  // 検索結果をブックマーク
+  bookmark: async (queryId: string, bookmarked: boolean): Promise<void> => {
+    await api.post(`/api/search/history/${queryId}/bookmark`, { bookmarked });
+  },
+
+  // 検索履歴削除
+  deleteQuery: async (queryId: string): Promise<void> => {
+    await api.delete(`/api/search/history/${queryId}`);
   },
 };
