@@ -43,6 +43,9 @@ export default function ThreadListPage() {
       <div className="page-header">
         <h2>スレッド一覧</h2>
         <div className="actions">
+          <Link to="/discover" className="btn btn-secondary">
+            新規スレッド発見
+          </Link>
           <button onClick={handleSyncAll} className="btn btn-primary">
             全スレッド同期
           </button>

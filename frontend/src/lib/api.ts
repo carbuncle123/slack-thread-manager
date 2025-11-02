@@ -1,5 +1,18 @@
 import axios from 'axios';
-import type { Thread, ThreadListResponse, ThreadCreate, ThreadUpdate, Message, SyncResponse, ThreadSummary, SummaryResponse } from '../types';
+import type {
+  Thread,
+  ThreadListResponse,
+  ThreadCreate,
+  ThreadUpdate,
+  Message,
+  SyncResponse,
+  ThreadSummary,
+  SummaryResponse,
+  DiscoverRequest,
+  DiscoverResponse,
+  RegisterThreadsRequest,
+  RegisterThreadsResponse
+} from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 
@@ -90,5 +103,19 @@ export const summariesApi = {
   // 要約削除
   deleteSummary: async (threadId: string): Promise<void> => {
     await api.delete(`/api/summaries/${threadId}`);
+  },
+};
+
+export const discoverApi = {
+  // 新規スレッド発見
+  discoverThreads: async (request: DiscoverRequest = {}): Promise<DiscoverResponse> => {
+    const response = await api.post<DiscoverResponse>('/api/discover/threads', request);
+    return response.data;
+  },
+
+  // スレッド一括登録
+  registerThreads: async (request: RegisterThreadsRequest): Promise<RegisterThreadsResponse> => {
+    const response = await api.post<RegisterThreadsResponse>('/api/discover/register', request);
+    return response.data;
   },
 };

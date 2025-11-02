@@ -15,7 +15,8 @@ from services.slack_client import SlackClient
 from services.thread_manager import ThreadManager
 from services.chatgpt_client import ChatGPTClient
 from services.summary_generator import SummaryGenerator
-from api import threads, sync, config as config_api, summaries
+from services.thread_discovery import ThreadDiscoveryService
+from api import threads, sync, config as config_api, summaries, discover
 from utils.logger import setup_logger
 
 # 設定読み込み
@@ -77,6 +78,14 @@ if chatgpt_client:
     )
     logger.info("要約生成サービス初期化完了")
 
+# スレッド発見サービス初期化
+discovery_service = ThreadDiscoveryService(
+    slack_client=slack_client,
+    thread_repo=thread_repo,
+    config_repo=config_repo
+)
+logger.info("スレッド発見サービス初期化完了")
+
 # FastAPI アプリケーション
 app = FastAPI(
     title="Slack Thread Manager API",
@@ -97,6 +106,8 @@ app.add_middleware(
 threads.set_thread_manager(thread_manager)
 sync.set_thread_manager(thread_manager)
 config_api.set_config_repository(config_repo)
+discover.discovery_service = discovery_service
+discover.thread_repo = thread_repo
 
 # 要約機能が有効な場合のみ登録
 if summary_generator:
@@ -107,6 +118,7 @@ if summary_generator:
 app.include_router(threads.router)
 app.include_router(sync.router)
 app.include_router(config_api.router)
+app.include_router(discover.router, prefix="/api/discover", tags=["discover"])
 
 
 @app.get("/")

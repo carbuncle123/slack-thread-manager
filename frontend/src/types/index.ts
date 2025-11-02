@@ -95,3 +95,47 @@ export interface SummaryResponse {
   summary: ThreadSummary | null;
   message: string;
 }
+
+// 新規スレッド発見関連の型
+
+export interface DiscoveredThread {
+  channel_id: string;
+  channel_name: string;
+  thread_ts: string;
+  first_message_text: string;
+  first_message_user: string;
+  first_message_user_name: string | null;
+  created_at: string;
+  message_count: number;
+  url: string;
+  matched_condition: string;
+  matched_value: string;
+}
+
+export interface DiscoverRequest {
+  channel_ids?: string[];
+  days?: number;
+}
+
+export interface DiscoverResponse {
+  discovered_threads: DiscoveredThread[];
+  total_count: number;
+  searched_channels: string[];
+}
+
+export interface RegisterThreadsRequest {
+  threads: Array<{
+    channel_id: string;
+    thread_ts: string;
+    title: string;
+    tags: string[];
+    url: string;
+  }>;
+}
+
+export interface RegisterThreadsResponse {
+  success: boolean;
+  registered_count: number;
+  failed_count: number;
+  errors: string[];
+}
