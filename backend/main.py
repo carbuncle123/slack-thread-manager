@@ -10,9 +10,12 @@ from models.config import Settings
 from repositories.thread_repository import ThreadRepository
 from repositories.message_repository import MessageRepository
 from repositories.config_repository import ConfigRepository
+from repositories.summary_repository import SummaryRepository
 from services.slack_client import SlackClient
 from services.thread_manager import ThreadManager
-from api import threads, sync, config as config_api
+from services.chatgpt_client import ChatGPTClient
+from services.summary_generator import SummaryGenerator
+from api import threads, sync, config as config_api, summaries
 from utils.logger import setup_logger
 
 # 設定読み込み
@@ -28,6 +31,7 @@ data_dir = Path(settings.data_dir)
 thread_repo = ThreadRepository(data_dir)
 message_repo = MessageRepository(data_dir)
 config_repo = ConfigRepository(data_dir)
+summary_repo = SummaryRepository(data_dir)
 
 # 設定を取得または作成
 app_config = config_repo.get_or_create_default(
@@ -50,6 +54,29 @@ thread_manager = ThreadManager(
     slack_client=slack_client
 )
 
+# ChatGPT クライアント初期化
+chatgpt_client = None
+if settings.openai_api_key:
+    chatgpt_client = ChatGPTClient(
+        api_key=settings.openai_api_key,
+        model=settings.openai_model,
+        max_tokens=settings.openai_max_tokens
+    )
+    logger.info("ChatGPT クライアント初期化完了")
+else:
+    logger.warning("OpenAI API Keyが設定されていません。要約機能は利用できません。")
+
+# 要約生成サービス初期化
+summary_generator = None
+if chatgpt_client:
+    summary_generator = SummaryGenerator(
+        chatgpt_client=chatgpt_client,
+        summary_repo=summary_repo,
+        message_repo=message_repo,
+        thread_repo=thread_repo
+    )
+    logger.info("要約生成サービス初期化完了")
+
 # FastAPI アプリケーション
 app = FastAPI(
     title="Slack Thread Manager API",
@@ -70,6 +97,11 @@ app.add_middleware(
 threads.set_thread_manager(thread_manager)
 sync.set_thread_manager(thread_manager)
 config_api.set_config_repository(config_repo)
+
+# 要約機能が有効な場合のみ登録
+if summary_generator:
+    summaries.set_summary_generator(summary_generator)
+    app.include_router(summaries.router)
 
 # ルーター登録
 app.include_router(threads.router)
