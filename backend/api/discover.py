@@ -74,7 +74,7 @@ async def register_threads(request: RegisterThreadsRequest):
                 )
 
                 # 既に登録されているかチェック
-                existing = thread_repo.find_by_channel_and_ts(
+                existing = thread_repo.get_by_channel_and_ts(
                     thread_create.channel_id,
                     thread_create.thread_ts
                 )
@@ -104,8 +104,7 @@ async def register_threads(request: RegisterThreadsRequest):
                     new_message_count=0,
                     is_read=False,
                     has_daily_summary=False,
-                    has_topic_summary=False,
-                    summary=None
+                    has_topic_summary=False
                 )
 
                 thread_repo.save(thread)
