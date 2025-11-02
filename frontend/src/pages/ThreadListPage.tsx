@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { threadsApi } from '../lib/api';
@@ -16,11 +16,15 @@ export default function ThreadListPage() {
   // フィルター状態
   const [filters, setFilters] = useState<FilterState>({
     search: '',
-    tags: [],
-    isRead: 'all',
     dateFrom: '',
     dateTo: '',
   });
+
+  // テーブルヘッダーフィルター
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<'all' | 'read' | 'unread'>('all');
+  const [showTagDropdown, setShowTagDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   // ソート状態
   const [sortBy, setSortBy] = useState<string>('updated_at');
@@ -43,12 +47,12 @@ export default function ThreadListPage() {
       params.search = filters.search;
     }
 
-    if (filters.tags.length > 0) {
-      params.tags = filters.tags.join(',');
+    if (selectedTags.length > 0) {
+      params.tags = selectedTags.join(',');
     }
 
-    if (filters.isRead !== 'all') {
-      params.is_read = filters.isRead === 'read';
+    if (selectedStatus !== 'all') {
+      params.is_read = selectedStatus === 'read';
     }
 
     if (filters.dateFrom) {
@@ -60,7 +64,7 @@ export default function ThreadListPage() {
     }
 
     return params;
-  }, [filters, sortBy, sortOrder, currentPage, itemsPerPage]);
+  }, [filters, selectedTags, selectedStatus, sortBy, sortOrder, currentPage, itemsPerPage]);
 
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['threads', apiParams],
@@ -103,6 +107,19 @@ export default function ThreadListPage() {
     setCurrentPage(1); // フィルター変更時は最初のページに戻る
   };
 
+  const handleTagToggle = (tag: string) => {
+    setSelectedTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    );
+    setCurrentPage(1);
+  };
+
+  const handleStatusChange = (status: 'all' | 'read' | 'unread') => {
+    setSelectedStatus(status);
+    setShowStatusDropdown(false);
+    setCurrentPage(1);
+  };
+
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -112,6 +129,20 @@ export default function ThreadListPage() {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
   };
+
+  // ドロップダウンを外側クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (!target.closest('.filterable')) {
+        setShowTagDropdown(false);
+        setShowStatusDropdown(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
 
   if (isLoading) {
     return <div className="loading">読み込み中...</div>;
@@ -146,7 +177,6 @@ export default function ThreadListPage() {
       <FilterPanel
         filters={filters}
         onFiltersChange={handleFiltersChange}
-        availableTags={availableTags}
       />
 
       {/* 結果サマリー */}
@@ -190,7 +220,82 @@ export default function ThreadListPage() {
                       </span>
                     )}
                   </th>
-                  <th>タグ</th>
+                  <th className="filterable">
+                    <div className="header-with-filter">
+                      <span>ステータス</span>
+                      <button
+                        className="filter-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowStatusDropdown(!showStatusDropdown);
+                          setShowTagDropdown(false);
+                        }}
+                      >
+                        ▼
+                      </button>
+                      {showStatusDropdown && (
+                        <div className="filter-dropdown">
+                          <label className="filter-option">
+                            <input
+                              type="radio"
+                              checked={selectedStatus === 'all'}
+                              onChange={() => handleStatusChange('all')}
+                            />
+                            <span>すべて</span>
+                          </label>
+                          <label className="filter-option">
+                            <input
+                              type="radio"
+                              checked={selectedStatus === 'unread'}
+                              onChange={() => handleStatusChange('unread')}
+                            />
+                            <span>未読</span>
+                          </label>
+                          <label className="filter-option">
+                            <input
+                              type="radio"
+                              checked={selectedStatus === 'read'}
+                              onChange={() => handleStatusChange('read')}
+                            />
+                            <span>既読</span>
+                          </label>
+                        </div>
+                      )}
+                    </div>
+                  </th>
+                  <th className="filterable">
+                    <div className="header-with-filter">
+                      <span>タグ</span>
+                      <button
+                        className="filter-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setShowTagDropdown(!showTagDropdown);
+                          setShowStatusDropdown(false);
+                        }}
+                      >
+                        ▼
+                      </button>
+                      {showTagDropdown && (
+                        <div className="filter-dropdown">
+                          {availableTags.length === 0 ? (
+                            <div className="no-options">タグがありません</div>
+                          ) : (
+                            availableTags.map(tag => (
+                              <label key={tag} className="filter-option">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedTags.includes(tag)}
+                                  onChange={() => handleTagToggle(tag)}
+                                />
+                                <span>{tag}</span>
+                              </label>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </th>
                   <th>アクション</th>
                 </tr>
               </thead>
@@ -212,6 +317,11 @@ export default function ThreadListPage() {
                     </td>
                     <td className="text-center">{thread.message_count}</td>
                     <td>{dayjs(thread.updated_at).fromNow()}</td>
+                    <td className="text-center">
+                      <span className={`status-badge ${thread.is_read ? 'read' : 'unread'}`}>
+                        {thread.is_read ? '既読' : '未読'}
+                      </span>
+                    </td>
                     <td>
                       <div className="thread-tags">
                         {thread.tags.map((tag, index) => (
