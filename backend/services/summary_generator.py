@@ -49,7 +49,7 @@ class SummaryGenerator:
         # メッセージ取得
         message_list = self.message_repo.get_by_thread_id(thread_id)
         if not message_list or not message_list.messages:
-            raise ValueError(f"メッセージが見つかりません: {thread_id}")
+            raise ValueError(f"このスレッドにはメッセージがありません。Slackから同期してください。")
 
         messages = message_list.messages
         logger.info(f"メッセージ取得: {len(messages)}件")

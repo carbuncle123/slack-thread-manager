@@ -1,9 +1,11 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { threadsApi } from '../lib/api';
+import { threadsApi, summariesApi } from '../lib/api';
 import { FilterPanel, type FilterState } from '../components/FilterPanel';
 import { Pagination } from '../components/Pagination';
+import { ThreadEditModal } from '../components/ThreadEditModal';
+import type { Thread } from '../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ja';
@@ -33,6 +35,10 @@ export default function ThreadListPage() {
   // ページネーション状態
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(20);
+
+  // 編集モーダル状態
+  const [editingThread, setEditingThread] = useState<Thread | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // APIパラメータを構築
   const apiParams = useMemo(() => {
@@ -128,6 +134,39 @@ export default function ThreadListPage() {
   const handleItemsPerPageChange = (newItemsPerPage: number) => {
     setItemsPerPage(newItemsPerPage);
     setCurrentPage(1);
+  };
+
+  // 編集モーダル操作
+  const handleEditClick = (thread: Thread) => {
+    setEditingThread(thread);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    setEditingThread(null);
+  };
+
+  const handleEditSave = async (updates: {
+    title: string;
+    tags: string[];
+    summary_topic: string;
+  }) => {
+    if (!editingThread) return;
+
+    await threadsApi.updateThread(editingThread.id, updates);
+    await refetch();
+  };
+
+  const handleGenerateSummary = async () => {
+    if (!editingThread) return;
+
+    await summariesApi.generateSummary(editingThread.id, true);
+    // 生成後、スレッドデータを再取得
+    await refetch();
+    // モーダルの表示を更新するため、editingThreadを更新（新しいオブジェクトとして）
+    const updatedThread = await threadsApi.getThread(editingThread.id);
+    setEditingThread({ ...updatedThread });
   };
 
   // ドロップダウンを外側クリックで閉じる
@@ -332,14 +371,22 @@ export default function ThreadListPage() {
                       </div>
                     </td>
                     <td>
-                      <a
-                        href={thread.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="btn btn-sm btn-secondary"
-                      >
-                        Slack
-                      </a>
+                      <div className="action-buttons">
+                        <button
+                          onClick={() => handleEditClick(thread)}
+                          className="btn btn-sm btn-secondary"
+                        >
+                          編集
+                        </button>
+                        <a
+                          href={thread.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-sm btn-secondary"
+                        >
+                          Slack
+                        </a>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -356,6 +403,17 @@ export default function ThreadListPage() {
             onItemsPerPageChange={handleItemsPerPageChange}
           />
         </>
+      )}
+
+      {/* 編集モーダル */}
+      {editingThread && (
+        <ThreadEditModal
+          thread={editingThread}
+          isOpen={isEditModalOpen}
+          onClose={handleEditModalClose}
+          onSave={handleEditSave}
+          onGenerateSummary={handleGenerateSummary}
+        />
       )}
     </div>
   );

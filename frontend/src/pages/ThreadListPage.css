@@ -297,6 +297,12 @@
   text-align: center;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
 /* レスポンシブ対応 */
 @media (max-width: 768px) {
   .page-header {

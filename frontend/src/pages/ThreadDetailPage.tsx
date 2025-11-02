@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link } from 'react-router-dom';
 import { threadsApi, summariesApi } from '../lib/api';
+import { ThreadEditModal } from '../components/ThreadEditModal';
 import dayjs from 'dayjs';
 import './ThreadDetailPage.css';
 
@@ -9,6 +10,7 @@ export default function ThreadDetailPage() {
   const { threadId } = useParams<{ threadId: string }>();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<'daily' | 'topic'>('daily');
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', threadId],
@@ -37,6 +39,22 @@ export default function ThreadDetailPage() {
     },
   });
 
+  const handleEditSave = async (updates: {
+    title: string;
+    tags: string[];
+    summary_topic: string;
+  }) => {
+    await threadsApi.updateThread(threadId!, updates);
+    queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+    queryClient.invalidateQueries({ queryKey: ['summary', threadId] });
+  };
+
+  const handleGenerateSummary = async () => {
+    await summariesApi.generateSummary(threadId!, true);
+    queryClient.invalidateQueries({ queryKey: ['summary', threadId] });
+    queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+  };
+
   if (threadLoading || messagesLoading) {
     return <div className="loading">読み込み中...</div>;
   }
@@ -63,6 +81,12 @@ export default function ThreadDetailPage() {
           <h2>{thread.title}</h2>
         </div>
         <div className="actions">
+          <button
+            onClick={() => setIsEditModalOpen(true)}
+            className="btn btn-secondary"
+          >
+            編集
+          </button>
           <a
             href={thread.url}
             target="_blank"
@@ -251,6 +275,15 @@ export default function ThreadDetailPage() {
           </div>
         )}
       </div>
+
+      {/* 編集モーダル */}
+      <ThreadEditModal
+        thread={thread}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onSave={handleEditSave}
+        onGenerateSummary={handleGenerateSummary}
+      />
     </div>
   );
 }

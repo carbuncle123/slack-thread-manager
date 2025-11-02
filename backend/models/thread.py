@@ -46,3 +46,4 @@ class ThreadUpdate(BaseModel):
     title: Optional[str] = None
     tags: Optional[List[str]] = None
     is_read: Optional[bool] = None
+    summary_topic: Optional[str] = None  # 要約のトピック部分

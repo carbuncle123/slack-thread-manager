@@ -108,7 +108,11 @@ class ThreadRepository:
             thread.tags = thread_update.tags
         if thread_update.is_read is not None:
             thread.is_read = thread_update.is_read
+        if thread_update.summary_topic is not None:
+            thread.summary.topic = thread_update.summary_topic
+            thread.summary.generated_at = datetime.now()
 
+        thread.updated_at = datetime.now()
         self.save(thread)
         logger.info(f"Updated thread: {thread_id}")
         return thread
