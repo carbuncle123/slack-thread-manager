@@ -1,0 +1,46 @@
+/* ThreadEditModal.cssを参照 - 共通スタイルを再利用 */
+
+.required {
+  color: #dc3545;
+  margin-left: 0.25rem;
+}
+
+.form-hint {
+  display: block;
+  margin-top: 0.25rem;
+  font-size: 0.75rem;
+  color: #6c757d;
+  font-style: italic;
+}
+
+.error-message {
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 4px;
+  color: #721c24;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.parsed-info {
+  padding: 0.75rem;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.parsed-info-item {
+  margin-bottom: 0.5rem;
+  color: #0c5460;
+}
+
+.parsed-info-item:last-child {
+  margin-bottom: 0;
+}
+
+.parsed-info-item strong {
+  margin-right: 0.5rem;
+}

@@ -16,6 +16,8 @@ class SlackClient:
         self.cookie = cookie
         self.workspace = workspace
         self.base_url = "https://slack.com/api"
+        # ユーザー情報のキャッシュ (user_id -> display_name)
+        self._user_cache: Dict[str, str] = {}
 
     def _get_headers(self) -> Dict[str, str]:
         """HTTPヘッダーを取得"""
@@ -91,10 +93,14 @@ class SlackClient:
                 ts = msg_data.get("ts", "")
                 created_at = datetime.fromtimestamp(float(ts))
 
+                # ユーザーIDから表示名を取得
+                user_id = msg_data.get("user", "")
+                user_name = await self.get_user_display_name(user_id) if user_id else None
+
                 message = Message(
                     ts=ts,
-                    user=msg_data.get("user", ""),
-                    user_name=msg_data.get("user_name"),  # 後でユーザー情報取得で補完
+                    user=user_id,
+                    user_name=user_name,
                     text=msg_data.get("text", ""),
                     reactions=reactions,
                     files=msg_data.get("files", []),
@@ -120,6 +126,36 @@ class SlackClient:
         except Exception as e:
             logger.error(f"Failed to fetch user info for {user_id}: {e}")
             return None
+
+    async def get_user_display_name(self, user_id: str) -> str:
+        """ユーザーの表示名を取得（キャッシュ付き）"""
+        # キャッシュをチェック
+        if user_id in self._user_cache:
+            return self._user_cache[user_id]
+
+        # ユーザー情報を取得
+        try:
+            user_info = await self.get_user_info(user_id)
+            if user_info:
+                # 表示名の優先順位: display_name > real_name > name > user_id
+                display_name = (
+                    user_info.get("profile", {}).get("display_name") or
+                    user_info.get("real_name") or
+                    user_info.get("name") or
+                    user_id
+                )
+                # キャッシュに保存
+                self._user_cache[user_id] = display_name
+                logger.info(f"Cached user: {user_id} -> {display_name}")
+                return display_name
+            else:
+                # ユーザー情報取得失敗時はIDをそのまま返す
+                self._user_cache[user_id] = user_id
+                return user_id
+        except Exception as e:
+            logger.error(f"Failed to get display name for {user_id}: {e}")
+            # エラー時もIDをそのまま返す
+            return user_id
 
     async def search_messages(
         self,

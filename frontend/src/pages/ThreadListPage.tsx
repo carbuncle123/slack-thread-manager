@@ -5,6 +5,7 @@ import { threadsApi, summariesApi } from '../lib/api';
 import { FilterPanel, type FilterState } from '../components/FilterPanel';
 import { Pagination } from '../components/Pagination';
 import { ThreadEditModal } from '../components/ThreadEditModal';
+import { ThreadCreateModal } from '../components/ThreadCreateModal';
 import type { Thread } from '../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -39,6 +40,9 @@ export default function ThreadListPage() {
   // 編集モーダル状態
   const [editingThread, setEditingThread] = useState<Thread | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+
+  // 新規作成モーダル状態
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   // APIパラメータを構築
   const apiParams = useMemo(() => {
@@ -169,6 +173,22 @@ export default function ThreadListPage() {
     setEditingThread({ ...updatedThread });
   };
 
+  // 新規作成モーダル操作
+  const handleCreateClick = () => {
+    setIsCreateModalOpen(true);
+  };
+
+  const handleCreateSave = async (data: {
+    channel_id: string;
+    thread_ts: string;
+    title: string;
+    tags: string[];
+  }) => {
+    await threadsApi.createThread(data);
+    await refetch();
+    setCurrentPage(1); // 最初のページに戻る
+  };
+
   // ドロップダウンを外側クリックで閉じる
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -203,10 +223,13 @@ export default function ThreadListPage() {
       <div className="page-header">
         <h2>スレッド一覧</h2>
         <div className="actions">
+          <button onClick={handleCreateClick} className="btn btn-primary">
+            新規スレッド追加
+          </button>
           <Link to="/discover" className="btn btn-secondary">
             新規スレッド発見
           </Link>
-          <button onClick={handleSyncAll} className="btn btn-primary">
+          <button onClick={handleSyncAll} className="btn btn-secondary">
             全スレッド同期
           </button>
         </div>
@@ -415,6 +438,13 @@ export default function ThreadListPage() {
           onGenerateSummary={handleGenerateSummary}
         />
       )}
+
+      {/* 新規作成モーダル */}
+      <ThreadCreateModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSave={handleCreateSave}
+      />
     </div>
   );
 }
