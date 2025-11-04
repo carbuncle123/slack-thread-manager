@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { MonitoredChannel } from '../types';
+import { configApi } from '../lib/api';
 import './ChannelManagementModal.css';
 
 interface ChannelManagementModalProps {
@@ -31,6 +33,24 @@ export const ChannelManagementModal: React.FC<ChannelManagementModalProps> = ({
   const [keywordInput, setKeywordInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [defaultMentionUserInput, setDefaultMentionUserInput] = useState('');
+
+  const queryClient = useQueryClient();
+
+  // デフォルトメンションユーザー取得
+  const { data: defaultMentionUsers = [] } = useQuery({
+    queryKey: ['defaultMentionUsers'],
+    queryFn: configApi.getDefaultMentionUsers,
+    enabled: isOpen,
+  });
+
+  // デフォルトメンションユーザー更新
+  const updateDefaultMentionMutation = useMutation({
+    mutationFn: configApi.updateDefaultMentionUsers,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['defaultMentionUsers'] });
+    },
+  });
 
   useEffect(() => {
     if (!isOpen) {
@@ -62,6 +82,13 @@ export const ChannelManagementModal: React.FC<ChannelManagementModalProps> = ({
     setIsAdding(true);
     setEditingChannel(null);
     resetForm();
+    // デフォルトメンションユーザーをセット
+    setFormData({
+      channel_id: '',
+      channel_name: '',
+      mention_users: [...defaultMentionUsers],
+      keywords: [],
+    });
   };
 
   const handleCancel = () => {
@@ -104,6 +131,20 @@ export const ChannelManagementModal: React.FC<ChannelManagementModalProps> = ({
       ...formData,
       keywords: formData.keywords.filter(k => k !== keyword),
     });
+  };
+
+  const handleAddDefaultMentionUser = () => {
+    const userId = defaultMentionUserInput.trim();
+    if (userId && !defaultMentionUsers.includes(userId)) {
+      updateDefaultMentionMutation.mutate([...defaultMentionUsers, userId]);
+      setDefaultMentionUserInput('');
+    }
+  };
+
+  const handleRemoveDefaultMentionUser = (userId: string) => {
+    updateDefaultMentionMutation.mutate(
+      defaultMentionUsers.filter(u => u !== userId)
+    );
   };
 
   const validateForm = (): boolean => {
@@ -171,6 +212,54 @@ export const ChannelManagementModal: React.FC<ChannelManagementModalProps> = ({
           {error && (
             <div className="error-message">
               {error}
+            </div>
+          )}
+
+          {/* デフォルトメンションユーザー設定 */}
+          {!isAdding && !editingChannel && (
+            <div className="default-mention-section">
+              <h3>デフォルトメンションユーザー設定</h3>
+              <p className="section-description">
+                新規チャンネル追加時に自動的にセットされるメンションユーザーを設定します。
+              </p>
+              <div className="form-group">
+                <div className="tag-input-container">
+                  <input
+                    type="text"
+                    value={defaultMentionUserInput}
+                    onChange={(e) => setDefaultMentionUserInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddDefaultMentionUser())}
+                    className="form-input"
+                    placeholder="ユーザーID (例: UAGJ7N9EK)"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAddDefaultMentionUser}
+                    className="btn btn-secondary btn-sm"
+                    disabled={updateDefaultMentionMutation.isPending}
+                  >
+                    追加
+                  </button>
+                </div>
+                <div className="tag-list">
+                  {defaultMentionUsers.map((userId, index) => (
+                    <span key={index} className="tag tag-editable">
+                      @{userId}
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveDefaultMentionUser(userId)}
+                        className="tag-remove-btn"
+                        disabled={updateDefaultMentionMutation.isPending}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                  {defaultMentionUsers.length === 0 && (
+                    <span className="empty-hint">デフォルトユーザーが設定されていません</span>
+                  )}
+                </div>
+              </div>
             </div>
           )}
 

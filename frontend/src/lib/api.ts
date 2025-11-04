@@ -199,6 +199,18 @@ export const configApi = {
     const response = await api.delete<AppConfig>(`/api/config/channels/${channelId}`);
     return response.data;
   },
+
+  // デフォルトメンションユーザー取得
+  getDefaultMentionUsers: async (): Promise<string[]> => {
+    const response = await api.get<string[]>('/api/config/default-mention-users');
+    return response.data;
+  },
+
+  // デフォルトメンションユーザー更新
+  updateDefaultMentionUsers: async (users: string[]): Promise<AppConfig> => {
+    const response = await api.put<AppConfig>('/api/config/default-mention-users', { users });
+    return response.data;
+  },
 };
 
 export const viewsApi = {

@@ -17,6 +17,7 @@ class SlackConfig(BaseModel):
     xoxc_token: str
     cookie: str
     monitored_channels: List[MonitoredChannel] = []
+    default_mention_users: List[str] = []
 
 
 class SyncConfig(BaseModel):

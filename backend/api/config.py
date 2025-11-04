@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 from models.config import AppConfig, SlackConfig, MonitoredChannel
 from typing import List
 
@@ -103,5 +104,32 @@ async def delete_monitored_channel(channel_id: str):
     if len(config.slack.monitored_channels) == original_length:
         raise HTTPException(status_code=404, detail="Channel not found")
 
+    config_repo.save(config)
+    return config
+
+
+class DefaultMentionUsersRequest(BaseModel):
+    """デフォルトメンションユーザー設定リクエスト"""
+    users: List[str]
+
+
+@router.get("/default-mention-users", response_model=List[str])
+async def get_default_mention_users():
+    """デフォルトメンションユーザー一覧を取得"""
+    if config_repo is None:
+        raise HTTPException(status_code=500, detail="Config repository not initialized")
+
+    config = config_repo.get_or_create_default()
+    return config.slack.default_mention_users
+
+
+@router.put("/default-mention-users", response_model=AppConfig)
+async def update_default_mention_users(request: DefaultMentionUsersRequest):
+    """デフォルトメンションユーザーを更新"""
+    if config_repo is None:
+        raise HTTPException(status_code=500, detail="Config repository not initialized")
+
+    config = config_repo.get_or_create_default()
+    config.slack.default_mention_users = request.users
     config_repo.save(config)
     return config
