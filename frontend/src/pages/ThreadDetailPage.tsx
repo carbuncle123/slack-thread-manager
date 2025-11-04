@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { threadsApi, summariesApi } from '../lib/api';
 import { ThreadEditModal } from '../components/ThreadEditModal';
 import dayjs from 'dayjs';
@@ -9,6 +9,7 @@ import './ThreadDetailPage.css';
 export default function ThreadDetailPage() {
   const { threadId } = useParams<{ threadId: string }>();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'daily' | 'topic'>('daily');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -55,6 +56,40 @@ export default function ThreadDetailPage() {
     queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
   };
 
+  const handleDeleteClick = async () => {
+    if (!window.confirm(`「${thread?.title}」を削除してもよろしいですか?\n\nこの操作は取り消せません。`)) {
+      return;
+    }
+
+    try {
+      await threadsApi.deleteThread(threadId!);
+      navigate('/');
+    } catch (err) {
+      console.error('Delete failed:', err);
+      alert('削除に失敗しました');
+    }
+  };
+
+  const handleToggleReadStatus = async () => {
+    if (!thread) return;
+
+    try {
+      if (thread.is_read) {
+        // 既読 → 未読にする
+        await threadsApi.updateThread(threadId!, { is_read: false });
+      } else {
+        // 未読 → 既読にする
+        await threadsApi.markAsRead(threadId!);
+      }
+      // スレッド情報を再取得
+      queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
+    } catch (err) {
+      console.error('Failed to toggle read status:', err);
+      alert('ステータスの変更に失敗しました');
+    }
+  };
+
   if (threadLoading || messagesLoading) {
     return <div className="loading">読み込み中...</div>;
   }
@@ -81,6 +116,20 @@ export default function ThreadDetailPage() {
           <h2>{thread.title}</h2>
         </div>
         <div className="actions">
+          <div className="status-display">
+            <span className={`status-badge ${thread.is_read ? 'read' : 'unread'}`}>
+              {thread.is_read ? '既読' : '未読'}
+            </span>
+            {!thread.is_read && thread.new_message_count > 0 && (
+              <span className="new-count-badge">+{thread.new_message_count}</span>
+            )}
+          </div>
+          <button
+            onClick={handleToggleReadStatus}
+            className={`btn ${thread.is_read ? 'btn-warning' : 'btn-success'}`}
+          >
+            {thread.is_read ? '未読にする' : '既読にする'}
+          </button>
           <button
             onClick={() => setIsEditModalOpen(true)}
             className="btn btn-secondary"
@@ -95,6 +144,12 @@ export default function ThreadDetailPage() {
           >
             Slackで開く
           </a>
+          <button
+            onClick={handleDeleteClick}
+            className="btn btn-danger"
+          >
+            削除
+          </button>
         </div>
       </div>
 
