@@ -1,8 +1,9 @@
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { discoverApi } from '../lib/api';
-import type { DiscoveredThread } from '../types';
+import { discoverApi, configApi } from '../lib/api';
+import { ChannelManagementModal } from '../components/ChannelManagementModal';
+import type { DiscoveredThread, MonitoredChannel } from '../types';
 import dayjs from 'dayjs';
 import './DiscoverPage.css';
 
@@ -12,6 +13,13 @@ export default function DiscoverPage() {
   const [discoveredThreads, setDiscoveredThreads] = useState<DiscoveredThread[]>([]);
   const [selectedThreads, setSelectedThreads] = useState<Set<string>>(new Set());
   const [days, setDays] = useState(7);
+  const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
+
+  // 監視チャンネル一覧を取得
+  const { data: channels = [] } = useQuery({
+    queryKey: ['monitored-channels'],
+    queryFn: () => configApi.getMonitoredChannels(),
+  });
 
   const discoverMutation = useMutation({
     mutationFn: () => discoverApi.discoverThreads({ days }),
@@ -71,6 +79,22 @@ export default function DiscoverPage() {
     registerMutation.mutate(threadsToRegister);
   };
 
+  // チャンネル管理ハンドラー
+  const handleAddChannel = async (channel: MonitoredChannel) => {
+    await configApi.addMonitoredChannel(channel);
+    queryClient.invalidateQueries({ queryKey: ['monitored-channels'] });
+  };
+
+  const handleUpdateChannel = async (channelId: string, channel: MonitoredChannel) => {
+    await configApi.updateMonitoredChannel(channelId, channel);
+    queryClient.invalidateQueries({ queryKey: ['monitored-channels'] });
+  };
+
+  const handleDeleteChannel = async (channelId: string) => {
+    await configApi.deleteMonitoredChannel(channelId);
+    queryClient.invalidateQueries({ queryKey: ['monitored-channels'] });
+  };
+
   return (
     <div className="discover-page">
       <div className="page-header">
@@ -99,13 +123,22 @@ export default function DiscoverPage() {
           </select>
         </div>
 
-        <button
-          onClick={() => discoverMutation.mutate()}
-          disabled={discoverMutation.isPending}
-          className="btn btn-primary"
-        >
-          {discoverMutation.isPending ? '検索中...' : 'スレッドを発見'}
-        </button>
+        <div className="control-buttons">
+          <button
+            onClick={() => setIsChannelModalOpen(true)}
+            className="btn btn-secondary"
+          >
+            監視チャンネル管理 ({channels.length})
+          </button>
+          <button
+            onClick={() => discoverMutation.mutate()}
+            disabled={discoverMutation.isPending || channels.length === 0}
+            className="btn btn-primary"
+            title={channels.length === 0 ? '監視チャンネルを設定してください' : ''}
+          >
+            {discoverMutation.isPending ? '検索中...' : 'スレッドを発見'}
+          </button>
+        </div>
       </div>
 
       {discoverMutation.isError && (
@@ -192,8 +225,27 @@ export default function DiscoverPage() {
           <p className="empty-state-note">
             ※ 検索を実行するには、事前に監視チャンネルの設定が必要です
           </p>
+          {channels.length === 0 && (
+            <button
+              onClick={() => setIsChannelModalOpen(true)}
+              className="btn btn-primary"
+              style={{ marginTop: '1rem' }}
+            >
+              監視チャンネルを設定する
+            </button>
+          )}
         </div>
       )}
+
+      {/* チャンネル管理モーダル */}
+      <ChannelManagementModal
+        isOpen={isChannelModalOpen}
+        onClose={() => setIsChannelModalOpen(false)}
+        channels={channels}
+        onAdd={handleAddChannel}
+        onUpdate={handleUpdateChannel}
+        onDelete={handleDeleteChannel}
+      />
     </div>
   );
 }

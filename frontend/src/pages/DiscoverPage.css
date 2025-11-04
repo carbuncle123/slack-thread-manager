@@ -27,6 +27,7 @@
   display: flex;
   gap: 1rem;
   align-items: center;
+  justify-content: space-between;
   margin-bottom: 2rem;
   padding: 1.5rem;
   background: white;
@@ -38,6 +39,12 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+}
+
+.control-buttons {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
 }
 
 .control-group label {

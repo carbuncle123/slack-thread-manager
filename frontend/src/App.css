@@ -108,6 +108,11 @@ body {
   color: white;
 }
 
+.btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
 .btn-sm {
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
