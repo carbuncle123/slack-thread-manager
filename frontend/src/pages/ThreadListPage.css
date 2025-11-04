@@ -25,6 +25,15 @@
   color: var(--text-muted);
 }
 
+.empty-state-cell {
+  padding: 0 !important;
+  border: none !important;
+}
+
+.empty-state-cell .empty-state {
+  padding: 3rem 1rem;
+}
+
 .thread-list {
   display: grid;
   gap: 1rem;
@@ -115,6 +124,7 @@
 /* テーブルレイアウト */
 .thread-table-container {
   overflow-x: auto;
+  overflow-y: visible; /* ドロップダウンが見えるように */
   background: white;
   border: 1px solid var(--border-color);
   border-radius: 8px;
@@ -129,6 +139,8 @@
 .thread-table thead {
   background-color: #f8f9fa;
   border-bottom: 2px solid #dee2e6;
+  position: relative;
+  z-index: 1;
 }
 
 .thread-table th {
@@ -153,6 +165,7 @@
 
 .thread-table th.filterable {
   position: relative;
+  overflow: visible; /* ドロップダウンが見えるように */
 }
 
 .header-with-filter {

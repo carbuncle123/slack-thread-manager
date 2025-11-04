@@ -101,20 +101,31 @@ export default function ThreadListPage() {
     queryFn: () => threadsApi.getThreads(apiParams),
   });
 
-  // 利用可能なタグを収集
+  // 全件取得用クエリ（フィルタなし、タグ抽出用）
+  const { data: allThreadsData } = useQuery({
+    queryKey: ['all-threads-for-tags'],
+    queryFn: () => threadsApi.getThreads({ limit: 10000, offset: 0 }),
+    staleTime: 5 * 60 * 1000, // 5分間キャッシュ
+  });
+
+  // 利用可能なタグを収集（全件から抽出）
   const availableTags = useMemo(() => {
-    if (!data?.threads) return [];
+    if (!allThreadsData?.threads) {
+      return [];
+    }
     const tagSet = new Set<string>();
-    data.threads.forEach(thread => {
+    allThreadsData.threads.forEach(thread => {
       thread.tags.forEach(tag => tagSet.add(tag));
     });
     return Array.from(tagSet).sort();
-  }, [data]);
+  }, [allThreadsData]);
 
   const handleSyncAll = async () => {
     try {
       await threadsApi.syncAll();
       refetch();
+      // タグ選択肢も最新にする
+      queryClient.invalidateQueries({ queryKey: ['all-threads-for-tags'] });
     } catch (err) {
       console.error('Sync failed:', err);
     }
@@ -180,6 +191,8 @@ export default function ThreadListPage() {
 
     await threadsApi.updateThread(editingThread.id, updates);
     await refetch();
+    // タグが変更された可能性があるのでタグ選択肢も更新
+    queryClient.invalidateQueries({ queryKey: ['all-threads-for-tags'] });
   };
 
   const handleGenerateSummary = async () => {
@@ -206,6 +219,8 @@ export default function ThreadListPage() {
   }) => {
     await threadsApi.createThread(data);
     await refetch();
+    // タグが追加された可能性があるのでタグ選択肢も更新
+    queryClient.invalidateQueries({ queryKey: ['all-threads-for-tags'] });
     setCurrentPage(1); // 最初のページに戻る
   };
 
@@ -383,186 +398,190 @@ export default function ThreadListPage() {
         <p>{total} 件のスレッドが見つかりました</p>
       </div>
 
-      {threads.length === 0 ? (
-        <div className="empty-state">
-          <p>条件に一致するスレッドがありません</p>
-        </div>
-      ) : (
-        <>
-          {/* スレッドテーブル */}
-          <div className="thread-table-container">
-            <table className="thread-table">
-              <thead>
-                <tr>
-                  <th onClick={() => handleSortChange('title')} className="sortable">
-                    タイトル
-                    {sortBy === 'title' && (
-                      <span className="sort-indicator">
-                        {sortOrder === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th>要約</th>
-                  <th onClick={() => handleSortChange('message_count')} className="sortable">
-                    メッセージ数
-                    {sortBy === 'message_count' && (
-                      <span className="sort-indicator">
-                        {sortOrder === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th onClick={() => handleSortChange('updated_at')} className="sortable">
-                    最終更新
-                    {sortBy === 'updated_at' && (
-                      <span className="sort-indicator">
-                        {sortOrder === 'asc' ? ' ▲' : ' ▼'}
-                      </span>
-                    )}
-                  </th>
-                  <th className="filterable">
-                    <div className="header-with-filter">
-                      <span>ステータス</span>
-                      <button
-                        className="filter-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowStatusDropdown(!showStatusDropdown);
-                          setShowTagDropdown(false);
-                        }}
-                      >
-                        ▼
-                      </button>
-                      {showStatusDropdown && (
-                        <div className="filter-dropdown">
-                          <label className="filter-option">
+      {/* スレッドテーブル（常に表示） */}
+      <div className="thread-table-container">
+        <table className="thread-table">
+          <thead>
+            <tr>
+              <th onClick={() => handleSortChange('title')} className="sortable">
+                タイトル
+                {sortBy === 'title' && (
+                  <span className="sort-indicator">
+                    {sortOrder === 'asc' ? ' ▲' : ' ▼'}
+                  </span>
+                )}
+              </th>
+              <th>要約</th>
+              <th onClick={() => handleSortChange('message_count')} className="sortable">
+                メッセージ数
+                {sortBy === 'message_count' && (
+                  <span className="sort-indicator">
+                    {sortOrder === 'asc' ? ' ▲' : ' ▼'}
+                  </span>
+                )}
+              </th>
+              <th onClick={() => handleSortChange('updated_at')} className="sortable">
+                最終更新
+                {sortBy === 'updated_at' && (
+                  <span className="sort-indicator">
+                    {sortOrder === 'asc' ? ' ▲' : ' ▼'}
+                  </span>
+                )}
+              </th>
+              <th className="filterable">
+                <div className="header-with-filter">
+                  <span>ステータス</span>
+                  <button
+                    className="filter-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowStatusDropdown(!showStatusDropdown);
+                      setShowTagDropdown(false);
+                    }}
+                  >
+                    ▼
+                  </button>
+                  {showStatusDropdown && (
+                    <div className="filter-dropdown">
+                      <label className="filter-option">
+                        <input
+                          type="radio"
+                          checked={selectedStatus === 'all'}
+                          onChange={() => handleStatusChange('all')}
+                        />
+                        <span>すべて</span>
+                      </label>
+                      <label className="filter-option">
+                        <input
+                          type="radio"
+                          checked={selectedStatus === 'unread'}
+                          onChange={() => handleStatusChange('unread')}
+                        />
+                        <span>未読</span>
+                      </label>
+                      <label className="filter-option">
+                        <input
+                          type="radio"
+                          checked={selectedStatus === 'read'}
+                          onChange={() => handleStatusChange('read')}
+                        />
+                        <span>既読</span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+              </th>
+              <th className="filterable">
+                <div className="header-with-filter">
+                  <span>タグ</span>
+                  <button
+                    className="filter-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowTagDropdown(!showTagDropdown);
+                      setShowStatusDropdown(false);
+                    }}
+                  >
+                    ▼
+                  </button>
+                  {showTagDropdown && (
+                    <div className="filter-dropdown">
+                      {availableTags.length === 0 ? (
+                        <div className="no-options">タグがありません</div>
+                      ) : (
+                        availableTags.map(tag => (
+                          <label key={tag} className="filter-option">
                             <input
-                              type="radio"
-                              checked={selectedStatus === 'all'}
-                              onChange={() => handleStatusChange('all')}
+                              type="checkbox"
+                              checked={selectedTags.includes(tag)}
+                              onChange={() => handleTagToggle(tag)}
                             />
-                            <span>すべて</span>
+                            <span>{tag}</span>
                           </label>
-                          <label className="filter-option">
-                            <input
-                              type="radio"
-                              checked={selectedStatus === 'unread'}
-                              onChange={() => handleStatusChange('unread')}
-                            />
-                            <span>未読</span>
-                          </label>
-                          <label className="filter-option">
-                            <input
-                              type="radio"
-                              checked={selectedStatus === 'read'}
-                              onChange={() => handleStatusChange('read')}
-                            />
-                            <span>既読</span>
-                          </label>
-                        </div>
+                        ))
                       )}
                     </div>
-                  </th>
-                  <th className="filterable">
-                    <div className="header-with-filter">
-                      <span>タグ</span>
-                      <button
-                        className="filter-btn"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setShowTagDropdown(!showTagDropdown);
-                          setShowStatusDropdown(false);
-                        }}
-                      >
-                        ▼
-                      </button>
-                      {showTagDropdown && (
-                        <div className="filter-dropdown">
-                          {availableTags.length === 0 ? (
-                            <div className="no-options">タグがありません</div>
-                          ) : (
-                            availableTags.map(tag => (
-                              <label key={tag} className="filter-option">
-                                <input
-                                  type="checkbox"
-                                  checked={selectedTags.includes(tag)}
-                                  onChange={() => handleTagToggle(tag)}
-                                />
-                                <span>{tag}</span>
-                              </label>
-                            ))
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </th>
-                  <th>アクション</th>
-                </tr>
-              </thead>
-              <tbody>
-                {threads.map((thread) => (
-                  <tr key={thread.id} className={!thread.is_read ? 'unread' : ''}>
-                    <td>
-                      <Link to={`/threads/${thread.id}`} className="thread-title-link">
-                        {thread.title}
-                      </Link>
-                      {!thread.is_read && thread.new_message_count > 0 && (
-                        <span className="badge badge-danger">
-                          +{thread.new_message_count}
+                  )}
+                </div>
+              </th>
+              <th>アクション</th>
+            </tr>
+          </thead>
+          <tbody>
+            {threads.length === 0 ? (
+              <tr>
+                <td colSpan={7} className="empty-state-cell">
+                  <div className="empty-state">
+                    <p>条件に一致するスレッドがありません</p>
+                  </div>
+                </td>
+              </tr>
+            ) : (
+              threads.map((thread) => (
+                <tr key={thread.id} className={!thread.is_read ? 'unread' : ''}>
+                  <td>
+                    <Link to={`/threads/${thread.id}`} className="thread-title-link">
+                      {thread.title}
+                    </Link>
+                    {!thread.is_read && thread.new_message_count > 0 && (
+                      <span className="badge badge-danger">
+                        +{thread.new_message_count}
+                      </span>
+                    )}
+                  </td>
+                  <td className="thread-summary-cell">
+                    {thread.summary.topic || '-'}
+                  </td>
+                  <td className="text-center">{thread.message_count}</td>
+                  <td>{dayjs(thread.updated_at).fromNow()}</td>
+                  <td className="text-center">
+                    <span className={`status-badge ${thread.is_read ? 'read' : 'unread'}`}>
+                      {thread.is_read ? '既読' : '未読'}
+                    </span>
+                  </td>
+                  <td>
+                    <div className="thread-tags">
+                      {thread.tags.map((tag, index) => (
+                        <span key={index} className="tag">
+                          {tag}
                         </span>
-                      )}
-                    </td>
-                    <td className="thread-summary-cell">
-                      {thread.summary.topic || '-'}
-                    </td>
-                    <td className="text-center">{thread.message_count}</td>
-                    <td>{dayjs(thread.updated_at).fromNow()}</td>
-                    <td className="text-center">
-                      <span className={`status-badge ${thread.is_read ? 'read' : 'unread'}`}>
-                        {thread.is_read ? '既読' : '未読'}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="thread-tags">
-                        {thread.tags.map((tag, index) => (
-                          <span key={index} className="tag">
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td>
-                      <div className="action-buttons">
-                        <button
-                          onClick={() => handleEditClick(thread)}
-                          className="btn btn-sm btn-secondary"
-                        >
-                          編集
-                        </button>
-                        <a
-                          href={thread.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="btn btn-sm btn-secondary"
-                        >
-                          Slack
-                        </a>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      ))}
+                    </div>
+                  </td>
+                  <td>
+                    <div className="action-buttons">
+                      <button
+                        onClick={() => handleEditClick(thread)}
+                        className="btn btn-sm btn-secondary"
+                      >
+                        編集
+                      </button>
+                      <a
+                        href={thread.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="btn btn-sm btn-secondary"
+                      >
+                        Slack
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
 
-          {/* ページネーション */}
-          <Pagination
-            currentPage={currentPage}
-            totalItems={total}
-            itemsPerPage={itemsPerPage}
-            onPageChange={handlePageChange}
-            onItemsPerPageChange={handleItemsPerPageChange}
-          />
-        </>
+      {/* ページネーション（スレッドがある場合のみ） */}
+      {threads.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalItems={total}
+          itemsPerPage={itemsPerPage}
+          onPageChange={handlePageChange}
+          onItemsPerPageChange={handleItemsPerPageChange}
+        />
       )}
 
       {/* 編集モーダル */}

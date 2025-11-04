@@ -1,7 +1,5 @@
 .search-page {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  width: 100%;
 }
 
 .search-header {
@@ -256,26 +254,39 @@
 
 .search-tabs {
   display: flex;
-  border-bottom: 1px solid #e1e5e9;
+  border-bottom: 2px solid #e1e5e9;
   margin-bottom: 20px;
+  gap: 4px;
 }
 
 .tab-button {
   padding: 12px 20px;
   background: none;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 3px solid transparent;
   cursor: pointer;
   font-size: 16px;
+  font-weight: 500;
   color: #666;
   transition: all 0.2s;
+  position: relative;
+  margin-bottom: -2px;
 }
 
 .tab-button.active {
   color: #0066cc;
   border-bottom-color: #0066cc;
+  background-color: rgba(0, 102, 204, 0.05);
+  font-weight: 600;
 }
 
 .tab-button:hover {
   color: #0066cc;
+  background-color: rgba(0, 102, 204, 0.03);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }

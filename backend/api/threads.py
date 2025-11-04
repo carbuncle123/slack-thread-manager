@@ -40,7 +40,7 @@ async def get_threads(
     date_to: Optional[str] = Query(None, description="終了日 (YYYY-MM-DD)"),
     sort_by: str = Query("updated_at", description="ソート項目"),
     sort_order: str = Query("desc", description="ソート順序 (asc/desc)"),
-    limit: int = Query(20, ge=1, le=100, description="取得件数"),
+    limit: int = Query(20, ge=1, le=10000, description="取得件数"),
     offset: int = Query(0, ge=0, description="オフセット")
 ):
     """スレッド一覧を取得"""

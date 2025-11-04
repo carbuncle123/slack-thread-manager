@@ -184,7 +184,7 @@
 
 .summary-tabs {
   display: flex;
-  gap: 0.5rem;
+  gap: 4px;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid var(--border-color);
 }
@@ -204,11 +204,14 @@
 
 .summary-tabs .tab:hover {
   color: var(--primary-color);
+  background-color: rgba(97, 31, 105, 0.03);
 }
 
 .summary-tabs .tab.active {
   color: var(--primary-color);
   border-bottom-color: var(--primary-color);
+  background-color: rgba(97, 31, 105, 0.05);
+  font-weight: 600;
 }
 
 .summary-tab-content {
