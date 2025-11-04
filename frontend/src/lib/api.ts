@@ -14,7 +14,13 @@ import type {
   RegisterThreadsResponse,
   QueryRequest,
   QueryResponse,
-  SearchHistoryItem
+  SearchHistoryItem,
+  MonitoredChannel,
+  AppConfig,
+  ThreadView,
+  CreateViewRequest,
+  UpdateViewRequest,
+  SetDefaultRequest
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -154,5 +160,80 @@ export const searchApi = {
   // 検索履歴削除
   deleteQuery: async (queryId: string): Promise<void> => {
     await api.delete(`/api/search/history/${queryId}`);
+  },
+};
+
+export const configApi = {
+  // 設定取得
+  getConfig: async (): Promise<AppConfig> => {
+    const response = await api.get<AppConfig>('/api/config');
+    return response.data;
+  },
+
+  // 設定更新
+  updateConfig: async (config: AppConfig): Promise<AppConfig> => {
+    const response = await api.put<AppConfig>('/api/config', config);
+    return response.data;
+  },
+
+  // 監視チャンネル一覧取得
+  getMonitoredChannels: async (): Promise<MonitoredChannel[]> => {
+    const response = await api.get<MonitoredChannel[]>('/api/config/channels');
+    return response.data;
+  },
+
+  // 監視チャンネル追加
+  addMonitoredChannel: async (channel: MonitoredChannel): Promise<AppConfig> => {
+    const response = await api.post<AppConfig>('/api/config/channels', channel);
+    return response.data;
+  },
+
+  // 監視チャンネル更新
+  updateMonitoredChannel: async (channelId: string, channel: MonitoredChannel): Promise<AppConfig> => {
+    const response = await api.put<AppConfig>(`/api/config/channels/${channelId}`, channel);
+    return response.data;
+  },
+
+  // 監視チャンネル削除
+  deleteMonitoredChannel: async (channelId: string): Promise<AppConfig> => {
+    const response = await api.delete<AppConfig>(`/api/config/channels/${channelId}`);
+    return response.data;
+  },
+};
+
+export const viewsApi = {
+  // ビュー一覧取得
+  getViews: async (): Promise<ThreadView[]> => {
+    const response = await api.get<ThreadView[]>('/api/views');
+    return response.data;
+  },
+
+  // 個別ビュー取得
+  getView: async (viewId: string): Promise<ThreadView> => {
+    const response = await api.get<ThreadView>(`/api/views/${viewId}`);
+    return response.data;
+  },
+
+  // ビュー作成
+  createView: async (request: CreateViewRequest): Promise<ThreadView> => {
+    const response = await api.post<ThreadView>('/api/views', request);
+    return response.data;
+  },
+
+  // ビュー更新
+  updateView: async (viewId: string, request: UpdateViewRequest): Promise<ThreadView> => {
+    const response = await api.put<ThreadView>(`/api/views/${viewId}`, request);
+    return response.data;
+  },
+
+  // ビュー削除
+  deleteView: async (viewId: string): Promise<void> => {
+    await api.delete(`/api/views/${viewId}`);
+  },
+
+  // デフォルトビュー設定
+  setDefault: async (viewId: string, request: SetDefaultRequest): Promise<ThreadView> => {
+    const response = await api.put<ThreadView>(`/api/views/${viewId}/default`, request);
+    return response.data;
   },
 };

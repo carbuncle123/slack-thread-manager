@@ -1,12 +1,15 @@
 import { useState, useMemo, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { threadsApi, summariesApi } from '../lib/api';
+import { threadsApi, summariesApi, viewsApi } from '../lib/api';
 import { FilterPanel, type FilterState } from '../components/FilterPanel';
 import { Pagination } from '../components/Pagination';
 import { ThreadEditModal } from '../components/ThreadEditModal';
 import { ThreadCreateModal } from '../components/ThreadCreateModal';
-import type { Thread } from '../types';
+import { ViewSelector } from '../components/ViewSelector';
+import { ViewFormModal } from '../components/ViewFormModal';
+import { ViewManagementModal } from '../components/ViewManagementModal';
+import type { Thread, ViewFilters, ViewSort, ThreadView } from '../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ja';
@@ -16,6 +19,9 @@ dayjs.extend(relativeTime);
 dayjs.locale('ja');
 
 export default function ThreadListPage() {
+  // ビュー選択状態
+  const [selectedViewId, setSelectedViewId] = useState<string | null>(null);
+
   // フィルター状態
   const [filters, setFilters] = useState<FilterState>({
     search: '',
@@ -43,6 +49,20 @@ export default function ThreadListPage() {
 
   // 新規作成モーダル状態
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+
+  // ビュー管理モーダル状態
+  const [isViewManagementModalOpen, setIsViewManagementModalOpen] = useState(false);
+  const [isViewFormModalOpen, setIsViewFormModalOpen] = useState(false);
+  const [editingView, setEditingView] = useState<ThreadView | null>(null);
+
+  // React Query クライアント
+  const queryClient = useQueryClient();
+
+  // ビュー一覧を取得
+  const { data: views = [] } = useQuery({
+    queryKey: ['views'],
+    queryFn: () => viewsApi.getViews(),
+  });
 
   // APIパラメータを構築
   const apiParams = useMemo(() => {
@@ -189,6 +209,104 @@ export default function ThreadListPage() {
     setCurrentPage(1); // 最初のページに戻る
   };
 
+  // ビュー選択ハンドラ
+  const handleSelectView = (viewId: string | null) => {
+    setSelectedViewId(viewId);
+
+    if (viewId === null) {
+      // 「すべてのスレッド」を選択 - フィルタをリセット
+      setFilters({ search: '', dateFrom: '', dateTo: '' });
+      setSelectedTags([]);
+      setSelectedStatus('all');
+      setSortBy('updated_at');
+      setSortOrder('desc');
+    } else {
+      // ビューのフィルタ条件を適用
+      const view = views.find(v => v.id === viewId);
+      if (view) {
+        setFilters({
+          search: view.filters.search,
+          dateFrom: view.filters.date_from || '',
+          dateTo: view.filters.date_to || '',
+        });
+        setSelectedTags(view.filters.tags);
+        setSelectedStatus(
+          view.filters.is_read === null ? 'all' :
+          view.filters.is_read ? 'read' : 'unread'
+        );
+        setSortBy(view.sort.sort_by);
+        setSortOrder(view.sort.sort_order);
+      }
+    }
+
+    setCurrentPage(1); // 最初のページに戻る
+  };
+
+  // ビュー管理モーダル操作
+  const handleViewManagementClick = () => {
+    setIsViewManagementModalOpen(true);
+  };
+
+  const handleViewCreate = () => {
+    setEditingView(null);
+    setIsViewFormModalOpen(true);
+  };
+
+  const handleViewEdit = (view: ThreadView) => {
+    setEditingView(view);
+    setIsViewManagementModalOpen(false);
+    setIsViewFormModalOpen(true);
+  };
+
+  const handleViewFormSave = async (data: {
+    name: string;
+    description: string | null;
+    is_default: boolean;
+    filters: ViewFilters;
+    sort: ViewSort;
+  }) => {
+    if (editingView) {
+      // 更新
+      await viewsApi.updateView(editingView.id, data);
+    } else {
+      // 新規作成
+      await viewsApi.createView(data);
+    }
+    // ビュー一覧を再取得
+    queryClient.invalidateQueries({ queryKey: ['views'] });
+  };
+
+  const handleViewDelete = async (viewId: string) => {
+    await viewsApi.deleteView(viewId);
+    // 削除したビューが選択中だった場合、選択を解除
+    if (selectedViewId === viewId) {
+      setSelectedViewId(null);
+    }
+    // ビュー一覧を再取得
+    queryClient.invalidateQueries({ queryKey: ['views'] });
+  };
+
+  const handleViewToggleDefault = async (viewId: string, isDefault: boolean) => {
+    await viewsApi.setDefault(viewId, { is_default: isDefault });
+    // ビュー一覧を再取得
+    queryClient.invalidateQueries({ queryKey: ['views'] });
+  };
+
+  // 現在のフィルタとソートをViewFilters/ViewSort形式に変換
+  const currentViewFilters: ViewFilters = useMemo(() => ({
+    tags: selectedTags,
+    is_read: selectedStatus === 'all' ? null : selectedStatus === 'read',
+    search: filters.search,
+    date_from: filters.dateFrom || null,
+    date_to: filters.dateTo || null,
+    has_new_messages: false,
+  }), [selectedTags, selectedStatus, filters]);
+
+  const currentViewSort: ViewSort = useMemo(() => ({
+    sort_by: sortBy,
+    sort_order: sortOrder,
+  }), [sortBy, sortOrder]);
+
   // ドロップダウンを外側クリックで閉じる
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -231,6 +349,25 @@ export default function ThreadListPage() {
           </Link>
           <button onClick={handleSyncAll} className="btn btn-secondary">
             全スレッド同期
+          </button>
+        </div>
+      </div>
+
+      {/* ビュー選択 */}
+      <div className="view-controls">
+        <ViewSelector
+          views={views}
+          selectedViewId={selectedViewId}
+          onSelectView={handleSelectView}
+          currentFilters={currentViewFilters}
+          currentSort={currentViewSort}
+        />
+        <div className="view-actions">
+          <button onClick={handleViewCreate} className="btn btn-sm btn-secondary">
+            現在の条件で新規ビュー作成
+          </button>
+          <button onClick={handleViewManagementClick} className="btn btn-sm btn-secondary">
+            ビュー管理
           </button>
         </div>
       </div>
@@ -444,6 +581,29 @@ export default function ThreadListPage() {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onSave={handleCreateSave}
+      />
+
+      {/* ビュー作成/編集モーダル */}
+      <ViewFormModal
+        isOpen={isViewFormModalOpen}
+        onClose={() => {
+          setIsViewFormModalOpen(false);
+          setEditingView(null);
+        }}
+        onSave={handleViewFormSave}
+        editingView={editingView}
+        currentFilters={currentViewFilters}
+        currentSort={currentViewSort}
+      />
+
+      {/* ビュー管理モーダル */}
+      <ViewManagementModal
+        isOpen={isViewManagementModalOpen}
+        onClose={() => setIsViewManagementModalOpen(false)}
+        views={views}
+        onEdit={handleViewEdit}
+        onDelete={handleViewDelete}
+        onToggleDefault={handleViewToggleDefault}
       />
     </div>
   );

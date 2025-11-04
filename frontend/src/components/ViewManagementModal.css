@@ -1,0 +1,108 @@
+.view-management-modal {
+  width: 90%;
+  max-width: 700px;
+  max-height: 80vh;
+}
+
+.view-management-modal .modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.view-management-modal .views-count {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-color);
+  margin-bottom: 1rem;
+}
+
+.view-management-modal .empty-views {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
+
+.view-management-modal .empty-views p {
+  margin: 0.5rem 0;
+}
+
+.view-management-modal .empty-hint {
+  font-size: 0.875rem;
+}
+
+.view-management-modal .views-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.view-management-modal .view-item {
+  padding: 1rem;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: #fafafa;
+}
+
+.view-management-modal .view-item-header {
+  margin-bottom: 0.5rem;
+}
+
+.view-management-modal .view-item-header h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-color);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.view-management-modal .default-badge {
+  color: #f59e0b;
+  font-size: 1.2rem;
+}
+
+.view-management-modal .view-description {
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.view-management-modal .view-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.75rem 0;
+}
+
+.view-management-modal .filter-tag {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  background-color: #e0e7ff;
+  color: #4f46e5;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.view-management-modal .view-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.view-management-modal .btn-danger {
+  background-color: #ef4444;
+  color: white;
+  border: 1px solid #dc2626;
+}
+
+.view-management-modal .btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.view-management-modal .btn-danger:disabled {
+  background-color: #fca5a5;
+  border-color: #fca5a5;
+  cursor: not-allowed;
+}

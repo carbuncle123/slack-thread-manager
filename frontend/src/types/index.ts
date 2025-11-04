@@ -173,3 +173,84 @@ export interface RegisterThreadsResponse {
   failed_count: number;
   errors: string[];
 }
+
+// 設定関連の型定義
+export interface MonitoredChannel {
+  channel_id: string;
+  channel_name: string;
+  mention_users: string[];
+  keywords: string[];
+}
+
+export interface SlackConfig {
+  workspace: string;
+  xoxc_token: string;
+  cookie: string;
+  monitored_channels: MonitoredChannel[];
+}
+
+export interface AppConfig {
+  slack: SlackConfig;
+  sync: {
+    auto_sync_enabled: boolean;
+    sync_interval_minutes: number;
+    last_sync_at: string | null;
+  };
+  llm: {
+    chatgpt_api_key: string | null;
+    chatgpt_model: string;
+    chatgpt_max_tokens: number;
+    claude_api_key: string | null;
+    claude_agent_enabled: boolean;
+  };
+  app: {
+    theme: string;
+    items_per_page: number;
+  };
+}
+
+// ビュー関連の型定義
+export interface ViewFilters {
+  tags: string[];
+  is_read: boolean | null;
+  search: string;
+  date_from: string | null;
+  date_to: string | null;
+  has_new_messages: boolean;
+}
+
+export interface ViewSort {
+  sort_by: string;
+  sort_order: 'asc' | 'desc';
+}
+
+export interface ThreadView {
+  id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  filters: ViewFilters;
+  sort: ViewSort;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CreateViewRequest {
+  name: string;
+  description?: string | null;
+  is_default: boolean;
+  filters: ViewFilters;
+  sort: ViewSort;
+}
+
+export interface UpdateViewRequest {
+  name: string;
+  description?: string | null;
+  is_default: boolean;
+  filters: ViewFilters;
+  sort: ViewSort;
+}
+
+export interface SetDefaultRequest {
+  is_default: boolean;
+}

@@ -324,3 +324,25 @@
     max-width: 150px;
   }
 }
+
+/* ビューコントロール */
+.view-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  padding: 1rem;
+  background-color: #f9fafb;
+  border-radius: 8px;
+}
+
+.view-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.view-actions .btn-sm {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}

@@ -11,12 +11,13 @@ from repositories.thread_repository import ThreadRepository
 from repositories.message_repository import MessageRepository
 from repositories.config_repository import ConfigRepository
 from repositories.summary_repository import SummaryRepository
+from repositories.view_repository import ViewRepository
 from services.slack_client import SlackClient
 from services.thread_manager import ThreadManager
 from services.chatgpt_client import ChatGPTClient
 from services.summary_generator import SummaryGenerator
 from services.thread_discovery import ThreadDiscoveryService
-from api import threads, sync, config as config_api, summaries, discover, search
+from api import threads, sync, config as config_api, summaries, discover, search, views
 from services.claude_agent import ClaudeAgentClient
 from utils.logger import setup_logger
 
@@ -37,6 +38,7 @@ thread_repo = ThreadRepository(data_dir)
 message_repo = MessageRepository(data_dir)
 config_repo = ConfigRepository(data_dir)
 summary_repo = SummaryRepository(data_dir)
+view_repo = ViewRepository(data_dir)
 
 # 設定を取得または作成
 app_config = config_repo.get_or_create_default(
@@ -100,7 +102,7 @@ app = FastAPI(
 # CORS設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.frontend_url, "http://localhost:3000", "http://localhost:5173"],
+    allow_origins=[settings.frontend_url, "http://localhost:3000", "http://localhost:5173", "http://localhost:5174"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -112,6 +114,7 @@ sync.set_thread_manager(thread_manager)
 config_api.set_config_repository(config_repo)
 discover.discovery_service = discovery_service
 discover.thread_repo = thread_repo
+views.set_view_repository(view_repo)
 
 # 要約機能が有効な場合のみ登録
 if summary_generator:
@@ -124,6 +127,7 @@ app.include_router(sync.router)
 app.include_router(config_api.router)
 app.include_router(discover.router, prefix="/api/discover", tags=["discover"])
 app.include_router(search.router, prefix="/api", tags=["search"])
+app.include_router(views.router)
 
 
 @app.get("/")
