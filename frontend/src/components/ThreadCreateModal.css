@@ -44,3 +44,57 @@
 .parsed-info-item strong {
   margin-right: 0.5rem;
 }
+
+/* タグチェックボックス - ThreadEditModalと同じスタイル */
+.tag-checkbox-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.75rem;
+  padding: 0.75rem;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+
+.tag-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.tag-checkbox-label:hover {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.tag-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.tag-checkbox-label span {
+  font-size: 0.875rem;
+  color: #333;
+}
+
+.tag-empty-message {
+  padding: 1rem;
+  text-align: center;
+  color: #6c757d;
+  font-size: 0.875rem;
+}
+
+.form-group-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.form-group-header label {
+  margin-bottom: 0;
+}

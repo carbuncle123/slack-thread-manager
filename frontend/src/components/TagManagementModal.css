@@ -1,0 +1,208 @@
+.tag-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.tag-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+.tag-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.tag-modal-header h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #333;
+}
+
+.tag-modal-close {
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.tag-modal-close:hover {
+  background-color: #f5f5f5;
+}
+
+.tag-modal-content {
+  padding: 24px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.tag-error {
+  background: #f8d7da;
+  color: #721c24;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.tag-create-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid #e1e5e9;
+}
+
+.tag-input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid #e1e5e9;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.tag-input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(97, 31, 105, 0.1);
+}
+
+.tag-btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+  white-space: nowrap;
+}
+
+.tag-btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.tag-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tag-btn-primary {
+  background-color: var(--primary-color);
+  color: white;
+}
+
+.tag-btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
+
+.tag-btn-success {
+  background-color: var(--success-color);
+  color: white;
+}
+
+.tag-btn-danger {
+  background-color: var(--danger-color);
+  color: white;
+}
+
+.tag-btn-edit {
+  background-color: #007bff;
+  color: white;
+}
+
+.tag-btn-sm {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+.tag-loading {
+  text-align: center;
+  padding: 40px;
+  color: #666;
+}
+
+.tag-empty {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 14px;
+}
+
+.tag-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tag-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #f8f9fa;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+  transition: background-color 0.2s;
+}
+
+.tag-item:hover {
+  background: #e9ecef;
+}
+
+.tag-name {
+  font-size: 15px;
+  color: #333;
+  font-weight: 500;
+}
+
+.tag-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.tag-edit-form {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.tag-edit-form .tag-input {
+  flex: 1;
+}
+
+.tag-modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid #e1e5e9;
+  display: flex;
+  justify-content: flex-end;
+}

@@ -12,12 +12,13 @@ from repositories.message_repository import MessageRepository
 from repositories.config_repository import ConfigRepository
 from repositories.summary_repository import SummaryRepository
 from repositories.view_repository import ViewRepository
+from repositories.tag_repository import TagRepository
 from services.slack_client import SlackClient
 from services.thread_manager import ThreadManager
 from services.chatgpt_client import ChatGPTClient
 from services.summary_generator import SummaryGenerator
 from services.thread_discovery import ThreadDiscoveryService
-from api import threads, sync, config as config_api, summaries, discover, search, views
+from api import threads, sync, config as config_api, summaries, discover, search, views, tags
 from services.claude_agent import ClaudeAgentClient
 from utils.logger import setup_logger
 
@@ -39,6 +40,7 @@ message_repo = MessageRepository(data_dir)
 config_repo = ConfigRepository(data_dir)
 summary_repo = SummaryRepository(data_dir)
 view_repo = ViewRepository(data_dir)
+tag_repo = TagRepository(data_dir)
 
 # 設定を取得または作成
 app_config = config_repo.get_or_create_default(
@@ -115,6 +117,7 @@ config_api.set_config_repository(config_repo)
 discover.discovery_service = discovery_service
 discover.thread_repo = thread_repo
 views.set_view_repository(view_repo)
+tags.set_tag_repository(tag_repo)
 
 # 要約機能が有効な場合のみ登録
 if summary_generator:
@@ -128,6 +131,7 @@ app.include_router(config_api.router)
 app.include_router(discover.router, prefix="/api/discover", tags=["discover"])
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(views.router)
+app.include_router(tags.router)
 
 
 @app.get("/")

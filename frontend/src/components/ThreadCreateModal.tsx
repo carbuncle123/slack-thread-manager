@@ -1,4 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { tagsApi } from '../lib/api';
+import TagManagementModal from './TagManagementModal';
 import './ThreadCreateModal.css';
 
 interface ThreadCreateModalProps {
@@ -22,9 +25,16 @@ export const ThreadCreateModal: React.FC<ThreadCreateModalProps> = ({
   const [threadTs, setThreadTs] = useState('');
   const [title, setTitle] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagInput, setTagInput] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+  const [isTagManagementOpen, setIsTagManagementOpen] = useState(false);
+
+  // タグ一覧取得
+  const { data: availableTags = [] } = useQuery({
+    queryKey: ['tags'],
+    queryFn: tagsApi.getTags,
+    enabled: isOpen,
+  });
 
   // モーダルが開いたらフォームをリセット
   useEffect(() => {
@@ -34,7 +44,6 @@ export const ThreadCreateModal: React.FC<ThreadCreateModalProps> = ({
       setThreadTs('');
       setTitle('');
       setTags([]);
-      setTagInput('');
       setError('');
     }
   }, [isOpen]);
@@ -77,22 +86,11 @@ export const ThreadCreateModal: React.FC<ThreadCreateModalProps> = ({
     }
   };
 
-  const handleAddTag = () => {
-    const trimmedTag = tagInput.trim();
-    if (trimmedTag && !tags.includes(trimmedTag)) {
-      setTags([...tags, trimmedTag]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
-  };
-
-  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddTag();
+  const handleTagToggle = (tag: string) => {
+    if (tags.includes(tag)) {
+      setTags(tags.filter(t => t !== tag));
+    } else {
+      setTags([...tags, tag]);
     }
   };
 
@@ -201,37 +199,34 @@ export const ThreadCreateModal: React.FC<ThreadCreateModalProps> = ({
 
           {/* タグ */}
           <div className="form-group">
-            <label>タグ（任意）</label>
-            <div className="tag-input-container">
-              <input
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleTagInputKeyDown}
-                className="form-input"
-                placeholder="タグを入力してEnter"
-              />
+            <div className="form-group-header">
+              <label>タグ（任意）</label>
               <button
                 type="button"
-                onClick={handleAddTag}
+                onClick={() => setIsTagManagementOpen(true)}
                 className="btn btn-secondary btn-sm"
               >
-                追加
+                タグ管理
               </button>
             </div>
-            <div className="tag-list">
-              {tags.map((tag, index) => (
-                <span key={index} className="tag tag-editable">
-                  {tag}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveTag(tag)}
-                    className="tag-remove-btn"
-                  >
-                    ×
-                  </button>
-                </span>
-              ))}
+            <div className="tag-checkbox-container">
+              {availableTags.length === 0 ? (
+                <div className="tag-empty-message">
+                  タグがありません。「タグ管理」ボタンからタグを追加してください。
+                </div>
+              ) : (
+                availableTags.map((tag) => (
+                  <label key={tag} className="tag-checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={tags.includes(tag)}
+                      onChange={() => handleTagToggle(tag)}
+                      className="tag-checkbox"
+                    />
+                    <span>{tag}</span>
+                  </label>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -255,6 +250,12 @@ export const ThreadCreateModal: React.FC<ThreadCreateModalProps> = ({
           </button>
         </div>
       </div>
+
+      {/* タグ管理モーダル */}
+      <TagManagementModal
+        isOpen={isTagManagementOpen}
+        onClose={() => setIsTagManagementOpen(false)}
+      />
     </div>
   );
 };

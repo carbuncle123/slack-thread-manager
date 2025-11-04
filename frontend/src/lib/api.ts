@@ -237,3 +237,26 @@ export const viewsApi = {
     return response.data;
   },
 };
+
+export const tagsApi = {
+  // タグ一覧取得
+  getTags: async (): Promise<string[]> => {
+    const response = await api.get<{ tags: string[] }>('/api/tags');
+    return response.data.tags;
+  },
+
+  // タグ作成
+  createTag: async (name: string): Promise<void> => {
+    await api.post('/api/tags', { name });
+  },
+
+  // タグ更新
+  updateTag: async (oldName: string, newName: string): Promise<void> => {
+    await api.put('/api/tags', { old_name: oldName, new_name: newName });
+  },
+
+  // タグ削除
+  deleteTag: async (name: string): Promise<void> => {
+    await api.delete(`/api/tags/${encodeURIComponent(name)}`);
+  },
+};
