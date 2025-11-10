@@ -95,6 +95,15 @@ export const threadsApi = {
     const response = await api.post('/api/sync/all');
     return response.data;
   },
+
+  // スレッド質問（LLM）
+  queryThread: async (threadId: string, query: string): Promise<{ answer: string; confidence: number }> => {
+    const response = await api.post<{ answer: string; confidence: number }>(
+      `/api/threads/${threadId}/query`,
+      { query }
+    );
+    return response.data;
+  },
 };
 
 export const summariesApi = {

@@ -67,7 +67,7 @@ export default function DiscoverPage() {
         channel_id: t.channel_id,
         thread_ts: t.thread_ts,
         title: t.first_message_text.substring(0, 100),
-        tags: [`discovered-${t.matched_condition}`],
+        tags: [],
         url: t.url
       }));
 

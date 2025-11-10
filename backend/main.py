@@ -26,7 +26,8 @@ from utils.logger import setup_logger
 settings = Settings()
 
 # Claude Agent初期化 (ローカルClaude Code SDK版)
-search.claude_agent = ClaudeAgentClient()
+claude_agent_client = ClaudeAgentClient()
+search.claude_agent = claude_agent_client
 
 # ロガーセットアップ
 logger = setup_logger("slack_thread_manager", settings.log_level)
@@ -112,6 +113,7 @@ app.add_middleware(
 
 # 依存性注入
 threads.set_thread_manager(thread_manager)
+threads.set_claude_agent(claude_agent_client)
 sync.set_thread_manager(thread_manager)
 config_api.set_config_repository(config_repo)
 discover.discovery_service = discovery_service

@@ -4,17 +4,26 @@ from pydantic import BaseModel
 
 from models.thread import Thread, ThreadCreate, ThreadUpdate
 from models.message import Message
+from utils.logger import get_logger
 
+logger = get_logger(__name__)
 router = APIRouter(prefix="/api/threads", tags=["threads"])
 
 # 依存性注入用のグローバル変数 (main.pyで設定)
 thread_manager = None
+claude_agent = None  # Claude Agentクライアント
 
 
 def set_thread_manager(manager):
     """ThreadManagerを設定"""
     global thread_manager
     thread_manager = manager
+
+
+def set_claude_agent(agent):
+    """Claude Agentクライアントを設定"""
+    global claude_agent
+    claude_agent = agent
 
 
 class ThreadListResponse(BaseModel):
@@ -29,6 +38,17 @@ class SyncResponse(BaseModel):
     total_messages: int
     new_messages: int
     synced_at: str
+
+
+class ThreadQueryRequest(BaseModel):
+    """スレッド質問リクエスト"""
+    query: str
+
+
+class ThreadQueryResponse(BaseModel):
+    """スレッド質問レスポンス"""
+    answer: str
+    confidence: float
 
 
 @router.get("", response_model=ThreadListResponse)
@@ -167,3 +187,35 @@ async def sync_thread(thread_id: str):
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{thread_id}/query", response_model=ThreadQueryResponse)
+async def query_thread(thread_id: str, request: ThreadQueryRequest):
+    """
+    特定のスレッドに対してLLMで質問に回答
+    Claude Agent SDKを使用してスレッド内の情報のみを参照
+    """
+    if thread_manager is None:
+        raise HTTPException(status_code=500, detail="Thread manager not initialized")
+    if claude_agent is None:
+        raise HTTPException(status_code=500, detail="Claude Agent not initialized")
+
+    # スレッドの存在確認
+    thread = thread_manager.get_thread_by_id(thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    try:
+        logger.info(f"Processing query for thread {thread_id}: {request.query}")
+
+        # Claude Agentでスレッド専用クエリを実行
+        result = await claude_agent.query_thread(thread_id, request.query)
+
+        return ThreadQueryResponse(
+            answer=result["answer"],
+            confidence=result["confidence"]
+        )
+
+    except Exception as e:
+        logger.error(f"Failed to process thread query: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")

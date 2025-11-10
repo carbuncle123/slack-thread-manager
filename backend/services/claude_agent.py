@@ -141,6 +141,62 @@ class ClaudeAgentClient:
             logger.error(f"Claude Agent query failed: {e}", exc_info=True)
             raise
 
+    async def query_thread(self, thread_id: str, user_question: str) -> Dict[str, Any]:
+        """
+        特定のスレッドに対してClaude Agent (ローカル) で質問に回答
+        スレッド横断検索とは異なり、指定されたスレッドのみを対象とする
+        """
+        logger.info(f"Processing thread query for thread_id={thread_id}: {user_question}")
+
+        try:
+            # スレッド専用のシステムプロンプト
+            thread_system_prompt = f"""
+あなたはSlackスレッド管理アプリケーションのアシスタントです。
+現在、スレッドID「{thread_id}」についての質問に回答してください。
+
+このスレッドのみを対象として、以下のツールを使用して情報を取得し、回答してください:
+- read_thread_info: スレッドの基本情報を取得
+- read_messages: スレッドの全メッセージを取得
+- read_summary: スレッドの要約 (日次 or トピック別) を取得
+
+重要: 他のスレッドを検索・参照せず、スレッドID「{thread_id}」のみに基づいて回答してください。
+
+回答には以下を含めてください:
+1. 質問への直接的な回答
+2. 関連するメッセージの引用や要約
+3. 必要に応じて、スレッドの要約や基本情報からの情報
+"""
+
+            # クエリオプション設定
+            options = ClaudeAgentOptions(
+                system_prompt=thread_system_prompt,
+                mcp_servers={"slack_tools": self.mcp_server},
+                permission_mode="acceptEdits"
+            )
+
+            # Claude Agent SDKで質問を実行
+            answer_parts = []
+            async for message in query(prompt=user_question, options=options):
+                # メッセージから回答を抽出
+                if hasattr(message, 'content'):
+                    for block in message.content:
+                        if hasattr(block, 'text'):
+                            answer_parts.append(block.text)
+
+            answer_text = "\n".join(answer_parts) if answer_parts else "回答を取得できませんでした"
+
+            # 回答内容から信頼度を計算（単一スレッド用に簡略化）
+            confidence = self._calculate_thread_confidence(answer_text, user_question)
+
+            return {
+                "answer": answer_text,
+                "confidence": confidence
+            }
+
+        except Exception as e:
+            logger.error(f"Claude Agent thread query failed: {e}", exc_info=True)
+            raise
+
     def _calculate_confidence(self, answer_text: str, related_threads: List[Dict[str, Any]],
                               user_question: str) -> float:
         """
@@ -205,6 +261,66 @@ class ClaudeAgentClient:
         keyword_matches = sum(1 for kw in question_keywords if kw in answer_text)
 
         if question_keywords and keyword_matches / len(question_keywords) > 0.5:
+            confidence += 0.1
+
+        # 最終的に0.0-1.0の範囲に収める
+        confidence = max(0.0, min(1.0, confidence))
+
+        return round(confidence, 2)
+
+    def _calculate_thread_confidence(self, answer_text: str, user_question: str) -> float:
+        """
+        スレッド専用クエリの信頼度を計算
+
+        評価基準:
+        - 回答の長さと詳細度
+        - 具体的な情報の有無
+        - ネガティブワードの有無
+        - 質問との関連性
+        """
+        confidence = 0.6  # ベーススコア（スレッド特定済みなので高め）
+
+        # 1. 回答の詳細度による加点 (最大+0.2)
+        answer_length = len(answer_text)
+        if answer_length > 500:
+            confidence += 0.2
+        elif answer_length > 200:
+            confidence += 0.1
+        elif answer_length > 100:
+            confidence += 0.05
+
+        # 2. 具体的な情報の有無による加点 (最大+0.1)
+        has_structured_info = '**' in answer_text or '##' in answer_text  # マークダウン構造
+        has_quote = '「' in answer_text or '>' in answer_text  # 引用
+
+        if has_structured_info:
+            confidence += 0.05
+        if has_quote:
+            confidence += 0.05
+
+        # 3. ネガティブワードによる減点 (最大-0.3)
+        negative_patterns = [
+            r'見つかりませんでした',
+            r'該当する.*?ありません',
+            r'不明',
+            r'わかりません',
+            r'確認できません',
+            r'情報がありません'
+        ]
+
+        negative_count = 0
+        for pattern in negative_patterns:
+            if re.search(pattern, answer_text):
+                negative_count += 1
+
+        if negative_count > 0:
+            confidence -= min(negative_count * 0.15, 0.3)
+
+        # 4. 質問との関連性チェック
+        question_keywords = [word for word in user_question.split() if len(word) > 2]
+        keyword_matches = sum(1 for kw in question_keywords if kw in answer_text)
+
+        if question_keywords and keyword_matches / len(question_keywords) > 0.3:
             confidence += 0.1
 
         # 最終的に0.0-1.0の範囲に収める

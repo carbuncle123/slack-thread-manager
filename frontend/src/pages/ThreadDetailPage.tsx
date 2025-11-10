@@ -12,6 +12,8 @@ export default function ThreadDetailPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'daily' | 'topic'>('daily');
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [queryText, setQueryText] = useState('');
+  const [queryAnswer, setQueryAnswer] = useState<{ answer: string; confidence: number } | null>(null);
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', threadId],
@@ -88,6 +90,33 @@ export default function ThreadDetailPage() {
       console.error('Failed to toggle read status:', err);
       alert('ステータスの変更に失敗しました');
     }
+  };
+
+  const queryThreadMutation = useMutation({
+    mutationFn: (query: string) => threadsApi.queryThread(threadId!, query),
+    onSuccess: (data) => {
+      setQueryAnswer(data);
+    },
+  });
+
+  const handleQuerySubmit = () => {
+    if (!queryText.trim()) {
+      alert('質問を入力してください');
+      return;
+    }
+    queryThreadMutation.mutate(queryText);
+  };
+
+  const getConfidenceBadge = (confidence: number) => {
+    if (confidence >= 0.7) return 'high';
+    if (confidence >= 0.4) return 'medium';
+    return 'low';
+  };
+
+  const getConfidenceLabel = (confidence: number) => {
+    if (confidence >= 0.7) return '高';
+    if (confidence >= 0.4) return '中';
+    return '低';
   };
 
   if (threadLoading || messagesLoading) {
@@ -293,6 +322,63 @@ export default function ThreadDetailPage() {
                 </div>
               )}
             </div>
+          </div>
+        )}
+      </div>
+
+      {/* LLM質問セクション */}
+      <div className="query-section">
+        <div className="section-header">
+          <h3>このスレッドについて質問</h3>
+        </div>
+        <div className="query-form">
+          <textarea
+            value={queryText}
+            onChange={(e) => setQueryText(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+                handleQuerySubmit();
+              }
+            }}
+            placeholder="このスレッドの内容について質問してください&#10;例: このスレッドの主な議論ポイントは？&#10;例: 最終的にどのような結論になりましたか？"
+            className="query-textarea"
+            rows={3}
+            disabled={queryThreadMutation.isPending}
+          />
+          <button
+            onClick={handleQuerySubmit}
+            disabled={queryThreadMutation.isPending || !queryText.trim()}
+            className="btn btn-primary query-btn"
+          >
+            {queryThreadMutation.isPending ? '回答生成中...' : '質問する (Ctrl+Enter)'}
+          </button>
+        </div>
+
+        {queryThreadMutation.isError && (
+          <div className="query-error">
+            エラーが発生しました: {queryThreadMutation.error instanceof Error ? queryThreadMutation.error.message : '不明なエラー'}
+          </div>
+        )}
+
+        {queryAnswer && (
+          <div className="query-answer">
+            <div className="answer-header">
+              <span className="answer-label">回答:</span>
+              <span className={`confidence-badge confidence-${getConfidenceBadge(queryAnswer.confidence)}`}>
+                信頼度: {getConfidenceLabel(queryAnswer.confidence)} ({(queryAnswer.confidence * 100).toFixed(0)}%)
+              </span>
+            </div>
+            <div className="answer-text">
+              {queryAnswer.answer.split('\n').map((line, index) => (
+                <p key={index}>{line || '\u00A0'}</p>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {!queryAnswer && !queryThreadMutation.isPending && !queryThreadMutation.isError && (
+          <div className="query-hint">
+            💡 このスレッドの内容に関する質問を入力すると、AIが回答します。
           </div>
         )}
       </div>
