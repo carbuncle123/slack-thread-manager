@@ -99,6 +99,18 @@
   margin: 0.25rem 0;
 }
 
+.message-text .slack-link {
+  color: var(--primary-color);
+  text-decoration: none;
+  border-bottom: 1px solid var(--primary-color);
+  transition: all 0.2s;
+}
+
+.message-text .slack-link:hover {
+  background-color: rgba(97, 31, 105, 0.1);
+  border-bottom-color: transparent;
+}
+
 .message-reactions {
   display: flex;
   flex-wrap: wrap;

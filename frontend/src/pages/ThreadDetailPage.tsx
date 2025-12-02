@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { threadsApi, summariesApi } from '../lib/api';
 import { ThreadEditModal } from '../components/ThreadEditModal';
+import { formatSlackText } from '../utils/formatSlackText';
 import dayjs from 'dayjs';
 import './ThreadDetailPage.css';
 
@@ -399,7 +400,7 @@ export default function ThreadDetailPage() {
                 </div>
                 <div className="message-text">
                   {message.text.split('\n').map((line, index) => (
-                    <p key={index}>{line || '\u00A0'}</p>
+                    <p key={index}>{line ? formatSlackText(line) : '\u00A0'}</p>
                   ))}
                 </div>
                 {message.reactions.length > 0 && (
