@@ -51,8 +51,15 @@
   margin-top: 2rem;
 }
 
-.messages-section h3 {
+.messages-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+}
+
+.messages-section h3 {
+  margin: 0;
   font-size: 1.25rem;
 }
 
@@ -228,6 +235,20 @@
 
 .summary-tab-content {
   margin-top: 1rem;
+}
+
+/* ソートコントロール */
+.sort-controls {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sort-btn {
+  font-size: 0.875rem;
+  padding: 0.5rem 1rem;
 }
 
 /* 日次要約 */

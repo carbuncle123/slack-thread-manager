@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { threadsApi, summariesApi } from '../lib/api';
@@ -15,6 +15,8 @@ export default function ThreadDetailPage() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [queryText, setQueryText] = useState('');
   const [queryAnswer, setQueryAnswer] = useState<{ answer: string; confidence: number } | null>(null);
+  const [dailySummaryOrder, setDailySummaryOrder] = useState<'asc' | 'desc'>('asc');
+  const [messageOrder, setMessageOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: thread, isLoading: threadLoading, error: threadError } = useQuery({
     queryKey: ['thread', threadId],
@@ -119,6 +121,30 @@ export default function ThreadDetailPage() {
     if (confidence >= 0.4) return '中';
     return '低';
   };
+
+  // 日次要約をソート
+  const sortedDailySummaries = useMemo(() => {
+    if (!summary?.daily_summaries) return [];
+    const sorted = [...summary.daily_summaries];
+    sorted.sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
+      return dailySummaryOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    return sorted;
+  }, [summary?.daily_summaries, dailySummaryOrder]);
+
+  // メッセージをソート
+  const sortedMessages = useMemo(() => {
+    if (!messages) return [];
+    const sorted = [...messages];
+    sorted.sort((a, b) => {
+      const dateA = new Date(a.created_at).getTime();
+      const dateB = new Date(b.created_at).getTime();
+      return messageOrder === 'asc' ? dateA - dateB : dateB - dateA;
+    });
+    return sorted;
+  }, [messages, messageOrder]);
 
   if (threadLoading || messagesLoading) {
     return <div className="loading">読み込み中...</div>;
@@ -279,8 +305,17 @@ export default function ThreadDetailPage() {
 
             <div className="summary-tab-content">
               {activeTab === 'daily' && (
-                <div className="daily-summaries">
-                  {summary.daily_summaries.map((daily, index) => (
+                <>
+                  <div className="sort-controls">
+                    <button
+                      onClick={() => setDailySummaryOrder(dailySummaryOrder === 'asc' ? 'desc' : 'asc')}
+                      className="btn btn-sm btn-secondary sort-btn"
+                    >
+                      日付順: {dailySummaryOrder === 'asc' ? '古い順 ▲' : '新しい順 ▼'}
+                    </button>
+                  </div>
+                  <div className="daily-summaries">
+                    {sortedDailySummaries.map((daily, index) => (
                     <div key={index} className="daily-summary-item">
                       <div className="daily-header">
                         <span className="daily-date">{daily.date}</span>
@@ -299,7 +334,8 @@ export default function ThreadDetailPage() {
                       )}
                     </div>
                   ))}
-                </div>
+                  </div>
+                </>
               )}
 
               {activeTab === 'topic' && (
@@ -385,12 +421,20 @@ export default function ThreadDetailPage() {
       </div>
 
       <div className="messages-section">
-        <h3>メッセージ ({messages?.length || 0})</h3>
+        <div className="section-header">
+          <h3>メッセージ ({messages?.length || 0})</h3>
+          <button
+            onClick={() => setMessageOrder(messageOrder === 'asc' ? 'desc' : 'asc')}
+            className="btn btn-sm btn-secondary sort-btn"
+          >
+            日時順: {messageOrder === 'asc' ? '古い順 ▲' : '新しい順 ▼'}
+          </button>
+        </div>
         {!messages || messages.length === 0 ? (
           <div className="empty-state">メッセージがありません</div>
         ) : (
           <div className="messages-list">
-            {messages.map((message) => (
+            {sortedMessages.map((message) => (
               <div key={message.ts} className="message-item">
                 <div className="message-header">
                   <span className="message-user">{message.user_name || message.user}</span>
