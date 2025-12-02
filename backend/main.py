@@ -50,19 +50,52 @@ app_config = config_repo.get_or_create_default(
     cookie=settings.slack_cookie
 )
 
-# Slack クライアント初期化
+# Slack クライアント初期化（グローバル変数として管理）
 slack_client = SlackClient(
     xoxc_token=app_config.slack.xoxc_token,
     cookie=app_config.slack.cookie,
     workspace=app_config.slack.workspace
 )
 
-# スレッド管理サービス初期化
+# スレッド管理サービス初期化（グローバル変数として管理）
 thread_manager = ThreadManager(
     thread_repo=thread_repo,
     message_repo=message_repo,
     slack_client=slack_client
 )
+
+
+def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
+    """Slack クライアントとそれに依存するサービスを再初期化"""
+    global slack_client, thread_manager, discovery_service
+
+    # 新しいSlackクライアントを作成
+    slack_client = SlackClient(
+        xoxc_token=xoxc_token,
+        cookie=cookie,
+        workspace=workspace
+    )
+
+    # ThreadManagerを再初期化
+    thread_manager = ThreadManager(
+        thread_repo=thread_repo,
+        message_repo=message_repo,
+        slack_client=slack_client
+    )
+
+    # ThreadDiscoveryServiceを再初期化
+    discovery_service = ThreadDiscoveryService(
+        slack_client=slack_client,
+        thread_repo=thread_repo,
+        config_repo=config_repo
+    )
+
+    # 各ルーターに新しいインスタンスを設定
+    threads.set_thread_manager(thread_manager)
+    sync.set_thread_manager(thread_manager)
+    discover.discovery_service = discovery_service
+
+    logger.info("Slack クライアントとサービスを再初期化しました")
 
 # ChatGPT クライアント初期化
 chatgpt_client = None
@@ -116,6 +149,7 @@ threads.set_thread_manager(thread_manager)
 threads.set_claude_agent(claude_agent_client)
 sync.set_thread_manager(thread_manager)
 config_api.set_config_repository(config_repo)
+config_api.set_reinitialize_function(reinitialize_slack_client)
 discover.discovery_service = discovery_service
 discover.thread_repo = thread_repo
 views.set_view_repository(view_repo)
