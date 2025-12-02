@@ -6,6 +6,8 @@ import { ThreadEditModal } from '../components/ThreadEditModal';
 import { formatSlackText } from '../utils/formatSlackText';
 import dayjs from 'dayjs';
 import './ThreadDetailPage.css';
+import { FiEdit2, FiArchive, FiTrash2, FiEye, FiEyeOff } from 'react-icons/fi';
+import { SiSlack } from 'react-icons/si';
 
 export default function ThreadDetailPage() {
   const { threadId } = useParams<{ threadId: string }>();
@@ -208,35 +210,45 @@ export default function ThreadDetailPage() {
           </div>
           <button
             onClick={handleToggleReadStatus}
-            className={`btn ${thread.is_read ? 'btn-warning' : 'btn-success'}`}
+            className={`btn btn-sm btn-icon ${thread.is_read ? 'btn-warning' : 'btn-success'}`}
+            title={thread.is_read ? '未読にする' : '既読にする'}
+            aria-label={thread.is_read ? '未読にする' : '既読にする'}
           >
-            {thread.is_read ? '未読にする' : '既読にする'}
+            {thread.is_read ? <FiEyeOff /> : <FiEye />}
           </button>
           <button
             onClick={() => setIsEditModalOpen(true)}
-            className="btn btn-secondary"
+            className="btn btn-sm btn-icon btn-secondary"
+            title="編集"
+            aria-label="編集"
           >
-            編集
+            <FiEdit2 />
           </button>
           <button
             onClick={handleToggleArchiveStatus}
-            className={`btn ${thread.is_archived ? 'btn-success' : 'btn-warning'}`}
+            className={`btn btn-sm btn-icon ${thread.is_archived ? 'btn-success' : 'btn-warning'}`}
+            title={thread.is_archived ? 'アーカイブ解除' : 'アーカイブ'}
+            aria-label={thread.is_archived ? 'アーカイブ解除' : 'アーカイブ'}
           >
-            {thread.is_archived ? 'アーカイブ解除' : 'アーカイブ'}
+            <FiArchive />
           </button>
           <a
             href={thread.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn btn-secondary"
+            className="btn btn-sm btn-icon btn-secondary"
+            title="Slackで開く"
+            aria-label="Slackで開く"
           >
-            Slackで開く
+            <SiSlack />
           </a>
           <button
             onClick={handleDeleteClick}
-            className="btn btn-danger"
+            className="btn btn-sm btn-icon btn-danger"
+            title="削除"
+            aria-label="削除"
           >
-            削除
+            <FiTrash2 />
           </button>
         </div>
       </div>

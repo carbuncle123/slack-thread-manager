@@ -359,3 +359,25 @@
   font-size: 0.875rem;
   padding: 0.5rem 0.75rem;
 }
+
+/* アイコンボタンスタイル */
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 16px;
+}
+
+.btn-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}

@@ -15,6 +15,8 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ja';
 import './ThreadListPage.css';
+import { FiEdit2, FiArchive } from 'react-icons/fi';
+import { SiSlack } from 'react-icons/si';
 
 dayjs.extend(relativeTime);
 dayjs.locale('ja');
@@ -588,23 +590,29 @@ export default function ThreadListPage() {
                     <div className="action-buttons">
                       <button
                         onClick={() => handleEditClick(thread)}
-                        className="btn btn-sm btn-secondary"
+                        className="btn btn-sm btn-icon btn-secondary"
+                        title="編集"
+                        aria-label="編集"
                       >
-                        編集
+                        <FiEdit2 />
                       </button>
                       <a
                         href={thread.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-sm btn-secondary"
+                        className="btn btn-sm btn-icon btn-secondary"
+                        title="Slackで開く"
+                        aria-label="Slackで開く"
                       >
-                        Slack
+                        <SiSlack />
                       </a>
                       <button
                         onClick={() => handleArchiveClick(thread.id)}
-                        className="btn btn-sm btn-warning"
+                        className="btn btn-sm btn-icon btn-warning"
+                        title="アーカイブ"
+                        aria-label="アーカイブ"
                       >
-                        アーカイブ
+                        <FiArchive />
                       </button>
                     </div>
                   </td>

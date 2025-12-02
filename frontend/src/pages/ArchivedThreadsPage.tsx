@@ -10,6 +10,8 @@ import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ja';
 import './ThreadListPage.css';
+import { FiArchive } from 'react-icons/fi';
+import { SiSlack } from 'react-icons/si';
 
 dayjs.extend(relativeTime);
 dayjs.locale('ja');
@@ -383,15 +385,19 @@ export default function ArchivedThreadsPage() {
                         href={thread.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="btn btn-sm btn-secondary"
+                        className="btn btn-sm btn-icon btn-secondary"
+                        title="Slackで開く"
+                        aria-label="Slackで開く"
                       >
-                        Slack
+                        <SiSlack />
                       </a>
                       <button
                         onClick={() => handleUnarchiveClick(thread.id)}
-                        className="btn btn-sm btn-success"
+                        className="btn btn-sm btn-icon btn-success"
+                        title="アーカイブ解除"
+                        aria-label="アーカイブ解除"
                       >
-                        解除
+                        <FiArchive />
                       </button>
                     </div>
                   </td>
