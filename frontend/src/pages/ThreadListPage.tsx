@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
-import { threadsApi, summariesApi, viewsApi } from '../lib/api';
+import { threadsApi, summariesApi, viewsApi, configApi } from '../lib/api';
 import { FilterPanel, type FilterState } from '../components/FilterPanel';
 import { Pagination } from '../components/Pagination';
 import { ThreadEditModal } from '../components/ThreadEditModal';
@@ -9,6 +9,7 @@ import { ThreadCreateModal } from '../components/ThreadCreateModal';
 import { ViewSelector } from '../components/ViewSelector';
 import { ViewFormModal } from '../components/ViewFormModal';
 import { ViewManagementModal } from '../components/ViewManagementModal';
+import { SlackCredentialsModal } from '../components/SlackCredentialsModal';
 import type { Thread, ViewFilters, ViewSort, ThreadView } from '../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
@@ -55,8 +56,17 @@ export default function ThreadListPage() {
   const [isViewFormModalOpen, setIsViewFormModalOpen] = useState(false);
   const [editingView, setEditingView] = useState<ThreadView | null>(null);
 
+  // Slack認証情報モーダル状態
+  const [isSlackCredentialsModalOpen, setIsSlackCredentialsModalOpen] = useState(false);
+
   // React Query クライアント
   const queryClient = useQueryClient();
+
+  // 設定を取得（Slack認証情報表示用）
+  const { data: appConfig } = useQuery({
+    queryKey: ['config'],
+    queryFn: () => configApi.getConfig(),
+  });
 
   // ビュー一覧を取得
   const { data: views = [] } = useQuery({
@@ -356,6 +366,13 @@ export default function ThreadListPage() {
       <div className="page-header">
         <h2>スレッド一覧</h2>
         <div className="actions">
+          <button
+            onClick={() => setIsSlackCredentialsModalOpen(true)}
+            className="btn btn-secondary"
+            title="Slack認証情報を設定"
+          >
+            ⚙️ Slack設定
+          </button>
           <button onClick={handleCreateClick} className="btn btn-primary">
             新規スレッド追加
           </button>
@@ -623,6 +640,14 @@ export default function ThreadListPage() {
         onEdit={handleViewEdit}
         onDelete={handleViewDelete}
         onToggleDefault={handleViewToggleDefault}
+      />
+
+      {/* Slack認証情報モーダル */}
+      <SlackCredentialsModal
+        isOpen={isSlackCredentialsModalOpen}
+        onClose={() => setIsSlackCredentialsModalOpen(false)}
+        currentXoxcToken={appConfig?.slack.xoxc_token}
+        currentCookie={appConfig?.slack.cookie}
       />
     </div>
   );

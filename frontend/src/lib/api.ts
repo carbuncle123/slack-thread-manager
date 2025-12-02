@@ -220,6 +220,15 @@ export const configApi = {
     const response = await api.put<AppConfig>('/api/config/default-mention-users', { users });
     return response.data;
   },
+
+  // Slack認証情報更新
+  updateSlackCredentials: async (xoxcToken: string, cookie: string): Promise<AppConfig> => {
+    const response = await api.put<AppConfig>('/api/config/slack-credentials', {
+      xoxc_token: xoxcToken,
+      cookie: cookie,
+    });
+    return response.data;
+  },
 };
 
 export const viewsApi = {
