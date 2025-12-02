@@ -37,6 +37,7 @@ export const threadsApi = {
   getThreads: async (params?: {
     tags?: string;
     is_read?: boolean;
+    is_archived?: boolean;
     search?: string;
     date_from?: string;
     date_to?: string;

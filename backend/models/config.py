@@ -76,5 +76,5 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
 
     class Config:
-        env_file = ".env"
+        env_file = "backend/.env"
         env_file_encoding = "utf-8"
