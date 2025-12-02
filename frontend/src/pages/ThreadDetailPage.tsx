@@ -95,6 +95,32 @@ export default function ThreadDetailPage() {
     }
   };
 
+  const handleToggleArchiveStatus = async () => {
+    if (!thread) return;
+
+    const confirmMessage = thread.is_archived
+      ? 'このスレッドをアーカイブ解除しますか？'
+      : 'このスレッドをアーカイブしますか？';
+
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    try {
+      if (thread.is_archived) {
+        await threadsApi.unarchiveThread(threadId!);
+      } else {
+        await threadsApi.archiveThread(threadId!);
+      }
+      // スレッド情報を再取得
+      queryClient.invalidateQueries({ queryKey: ['thread', threadId] });
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
+    } catch (err) {
+      console.error('Failed to toggle archive status:', err);
+      alert('アーカイブ状態の変更に失敗しました');
+    }
+  };
+
   const queryThreadMutation = useMutation({
     mutationFn: (query: string) => threadsApi.queryThread(threadId!, query),
     onSuccess: (data) => {
@@ -191,6 +217,12 @@ export default function ThreadDetailPage() {
             className="btn btn-secondary"
           >
             編集
+          </button>
+          <button
+            onClick={handleToggleArchiveStatus}
+            className={`btn ${thread.is_archived ? 'btn-success' : 'btn-warning'}`}
+          >
+            {thread.is_archived ? 'アーカイブ解除' : 'アーカイブ'}
           </button>
           <a
             href={thread.url}

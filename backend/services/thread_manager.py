@@ -115,10 +115,13 @@ class ThreadManager:
             raise
 
     async def sync_all_threads(self) -> dict:
-        """全スレッドを同期"""
+        """全スレッドを同期（アーカイブ済みは除外）"""
         logger.info("Syncing all threads")
 
-        threads = self.thread_repo.get_all()
+        # アーカイブされていないスレッドのみを取得
+        all_threads = self.thread_repo.get_all()
+        threads = [t for t in all_threads if not t.is_archived]
+
         results = {
             "total_threads": len(threads),
             "synced": 0,
@@ -157,6 +160,7 @@ class ThreadManager:
         self,
         tags: Optional[List[str]] = None,
         is_read: Optional[bool] = None,
+        is_archived: Optional[bool] = None,
         search: Optional[str] = None,
         date_from: Optional[str] = None,
         date_to: Optional[str] = None
@@ -175,6 +179,10 @@ class ThreadManager:
         # 既読/未読フィルタ
         if is_read is not None:
             threads = [t for t in threads if t.is_read == is_read]
+
+        # アーカイブフィルタ
+        if is_archived is not None:
+            threads = [t for t in threads if t.is_archived == is_archived]
 
         # 検索フィルタ (タイトル、要約)
         if search:

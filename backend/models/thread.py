@@ -23,6 +23,7 @@ class Thread(BaseModel):
     message_count: int = 0
     new_message_count: int = 0
     is_read: bool = True
+    is_archived: bool = False
     has_daily_summary: bool = False
     has_topic_summary: bool = False
     summary: ThreadSummary = Field(default_factory=ThreadSummary)
@@ -46,4 +47,5 @@ class ThreadUpdate(BaseModel):
     title: Optional[str] = None
     tags: Optional[List[str]] = None
     is_read: Optional[bool] = None
+    is_archived: Optional[bool] = None
     summary_topic: Optional[str] = None  # 要約のトピック部分

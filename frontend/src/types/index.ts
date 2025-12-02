@@ -13,6 +13,7 @@ export interface Thread {
   message_count: number;
   new_message_count: number;
   is_read: boolean;
+  is_archived: boolean;
   has_daily_summary: boolean;
   has_topic_summary: boolean;
   summary: {
@@ -86,6 +87,7 @@ export interface ThreadUpdate {
   title?: string;
   tags?: string[];
   is_read?: boolean;
+  is_archived?: boolean;
 }
 
 export interface SyncResponse {

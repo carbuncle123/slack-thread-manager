@@ -104,6 +104,18 @@ export const threadsApi = {
     );
     return response.data;
   },
+
+  // アーカイブ
+  archiveThread: async (threadId: string): Promise<Thread> => {
+    const response = await api.post<Thread>(`/api/threads/${threadId}/archive`);
+    return response.data;
+  },
+
+  // アーカイブ解除
+  unarchiveThread: async (threadId: string): Promise<Thread> => {
+    const response = await api.post<Thread>(`/api/threads/${threadId}/unarchive`);
+    return response.data;
+  },
 };
 
 export const summariesApi = {

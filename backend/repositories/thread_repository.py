@@ -108,6 +108,8 @@ class ThreadRepository:
             thread.tags = thread_update.tags
         if thread_update.is_read is not None:
             thread.is_read = thread_update.is_read
+        if thread_update.is_archived is not None:
+            thread.is_archived = thread_update.is_archived
         if thread_update.summary_topic is not None:
             thread.summary.topic = thread_update.summary_topic
             thread.summary.generated_at = datetime.now()

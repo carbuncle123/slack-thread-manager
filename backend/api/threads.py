@@ -55,6 +55,7 @@ class ThreadQueryResponse(BaseModel):
 async def get_threads(
     tags: Optional[str] = Query(None, description="カンマ区切りのタグ"),
     is_read: Optional[bool] = Query(None, description="既読/未読フィルタ"),
+    is_archived: Optional[bool] = Query(None, description="アーカイブフィルタ"),
     search: Optional[str] = Query(None, description="検索キーワード"),
     date_from: Optional[str] = Query(None, description="開始日 (YYYY-MM-DD)"),
     date_to: Optional[str] = Query(None, description="終了日 (YYYY-MM-DD)"),
@@ -74,6 +75,7 @@ async def get_threads(
     threads = thread_manager.filter_threads(
         tags=tag_list,
         is_read=is_read,
+        is_archived=is_archived,
         search=search,
         date_from=date_from,
         date_to=date_to
@@ -219,3 +221,49 @@ async def query_thread(thread_id: str, request: ThreadQueryRequest):
     except Exception as e:
         logger.error(f"Failed to process thread query: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Query processing failed: {str(e)}")
+
+
+@router.post("/{thread_id}/archive", response_model=Thread)
+async def archive_thread(thread_id: str):
+    """スレッドをアーカイブ"""
+    if thread_manager is None:
+        raise HTTPException(status_code=500, detail="Thread manager not initialized")
+
+    thread = thread_manager.get_thread_by_id(thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    try:
+        # アーカイブ状態に更新
+        updated_thread = thread_manager.update_thread(
+            thread_id,
+            ThreadUpdate(is_archived=True)
+        )
+        logger.info(f"Thread {thread_id} archived")
+        return updated_thread
+    except Exception as e:
+        logger.error(f"Failed to archive thread {thread_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to archive thread: {str(e)}")
+
+
+@router.post("/{thread_id}/unarchive", response_model=Thread)
+async def unarchive_thread(thread_id: str):
+    """スレッドのアーカイブを解除"""
+    if thread_manager is None:
+        raise HTTPException(status_code=500, detail="Thread manager not initialized")
+
+    thread = thread_manager.get_thread_by_id(thread_id)
+    if thread is None:
+        raise HTTPException(status_code=404, detail="Thread not found")
+
+    try:
+        # アーカイブ解除
+        updated_thread = thread_manager.update_thread(
+            thread_id,
+            ThreadUpdate(is_archived=False)
+        )
+        logger.info(f"Thread {thread_id} unarchived")
+        return updated_thread
+    except Exception as e:
+        logger.error(f"Failed to unarchive thread {thread_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to unarchive thread: {str(e)}")

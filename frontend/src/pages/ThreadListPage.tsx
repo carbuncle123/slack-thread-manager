@@ -81,6 +81,7 @@ export default function ThreadListPage() {
       sort_order: sortOrder,
       limit: itemsPerPage,
       offset: (currentPage - 1) * itemsPerPage,
+      is_archived: false, // アーカイブ済みは除外
     };
 
     if (filters.search) {
@@ -114,7 +115,7 @@ export default function ThreadListPage() {
   // 全件取得用クエリ（フィルタなし、タグ抽出用）
   const { data: allThreadsData } = useQuery({
     queryKey: ['all-threads-for-tags'],
-    queryFn: () => threadsApi.getThreads({ limit: 10000, offset: 0 }),
+    queryFn: () => threadsApi.getThreads({ limit: 10000, offset: 0, is_archived: false }),
     staleTime: 5 * 60 * 1000, // 5分間キャッシュ
   });
 
@@ -232,6 +233,24 @@ export default function ThreadListPage() {
     // タグが追加された可能性があるのでタグ選択肢も更新
     queryClient.invalidateQueries({ queryKey: ['all-threads-for-tags'] });
     setCurrentPage(1); // 最初のページに戻る
+  };
+
+  // アーカイブ操作
+  const handleArchiveClick = async (threadId: string) => {
+    if (!window.confirm('このスレッドをアーカイブしますか？')) {
+      return;
+    }
+
+    try {
+      await threadsApi.archiveThread(threadId);
+      // すべてのスレッド関連のクエリを無効化
+      queryClient.invalidateQueries({ queryKey: ['threads'] });
+      queryClient.invalidateQueries({ queryKey: ['archived-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['all-threads-for-tags'] });
+    } catch (err) {
+      console.error('Archive failed:', err);
+      alert('アーカイブに失敗しました');
+    }
   };
 
   // ビュー選択ハンドラ
@@ -581,6 +600,12 @@ export default function ThreadListPage() {
                       >
                         Slack
                       </a>
+                      <button
+                        onClick={() => handleArchiveClick(thread.id)}
+                        className="btn btn-sm btn-warning"
+                      >
+                        アーカイブ
+                      </button>
                     </div>
                   </td>
                 </tr>
