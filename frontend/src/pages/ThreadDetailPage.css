@@ -118,6 +118,14 @@
   border-bottom-color: transparent;
 }
 
+.message-text .slack-mention {
+  color: #1264a3;
+  background-color: #e8f5fa;
+  padding: 2px 4px;
+  border-radius: 3px;
+  font-weight: 500;
+}
+
 .message-reactions {
   display: flex;
   flex-wrap: wrap;

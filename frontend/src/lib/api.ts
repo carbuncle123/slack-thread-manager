@@ -85,6 +85,12 @@ export const threadsApi = {
     return response.data;
   },
 
+  // ユーザーマッピング取得
+  getUserMappings: async (threadId: string): Promise<Record<string, string>> => {
+    const response = await api.get<Record<string, string>>(`/api/threads/${threadId}/user-mappings`);
+    return response.data;
+  },
+
   // メッセージ同期
   syncThread: async (threadId: string): Promise<SyncResponse> => {
     const response = await api.post<SyncResponse>(`/api/threads/${threadId}/sync`);

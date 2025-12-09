@@ -32,6 +32,12 @@ export default function ThreadDetailPage() {
     enabled: !!threadId,
   });
 
+  const { data: userMappings = {} } = useQuery({
+    queryKey: ['user-mappings', threadId],
+    queryFn: () => threadsApi.getUserMappings(threadId!),
+    enabled: !!threadId,
+  });
+
   const { data: summary, isLoading: summaryLoading, error: summaryError } = useQuery({
     queryKey: ['summary', threadId],
     queryFn: () => summariesApi.getSummary(threadId!),
@@ -488,7 +494,7 @@ export default function ThreadDetailPage() {
                 </div>
                 <div className="message-text">
                   {message.text.split('\n').map((line, index) => (
-                    <p key={index}>{line ? formatSlackText(line) : '\u00A0'}</p>
+                    <p key={index}>{line ? formatSlackText(line, userMappings) : '\u00A0'}</p>
                   ))}
                 </div>
                 {message.reactions.length > 0 && (

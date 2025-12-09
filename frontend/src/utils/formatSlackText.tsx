@@ -1,44 +1,100 @@
 import React from 'react';
 
 /**
- * Slackのリンク記法 <URL|表示テキスト> をHTMLリンクに変換します
+ * Slackのメンション記法とリンク記法を変換します
+ * - <@U12345> → @ユーザー名
+ * - <URL|表示テキスト> → HTMLリンク
  */
-export function formatSlackText(text: string): React.ReactNode[] {
+export function formatSlackText(
+  text: string,
+  userMappings?: Record<string, string>
+): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
+  let currentText = text;
+  let keyCounter = 0;
+
+  // パターンを定義（メンションとリンク）
+  const patterns = [
+    { regex: /<@([A-Z0-9]+)>/g, type: 'mention' },
+    { regex: /<([^@|>]+)\|([^>]+)>/g, type: 'link' },
+  ];
+
+  // すべてのマッチを収集
+  interface Match {
+    index: number;
+    length: number;
+    type: 'mention' | 'link';
+    userId?: string;
+    url?: string;
+    displayText?: string;
+  }
+
+  const matches: Match[] = [];
+
+  // メンションパターン
+  const mentionPattern = /<@([A-Z0-9]+)>/g;
+  let match: RegExpExecArray | null;
+  while ((match = mentionPattern.exec(currentText)) !== null) {
+    matches.push({
+      index: match.index,
+      length: match[0].length,
+      type: 'mention',
+      userId: match[1],
+    });
+  }
+
+  // リンクパターン
+  const linkPattern = /<([^@|>]+)\|([^>]+)>/g;
+  while ((match = linkPattern.exec(currentText)) !== null) {
+    matches.push({
+      index: match.index,
+      length: match[0].length,
+      type: 'link',
+      url: match[1],
+      displayText: match[2],
+    });
+  }
+
+  // インデックスでソート
+  matches.sort((a, b) => a.index - b.index);
+
+  // テキストを組み立て
   let lastIndex = 0;
 
-  // <URL|表示テキスト> のパターンにマッチ
-  const linkPattern = /<([^|>]+)\|([^>]+)>/g;
-  let match: RegExpExecArray | null;
-
-  while ((match = linkPattern.exec(text)) !== null) {
-    const [fullMatch, url, displayText] = match;
-    const matchIndex = match.index;
-
+  for (const m of matches) {
     // マッチ前のテキストを追加
-    if (matchIndex > lastIndex) {
-      parts.push(text.substring(lastIndex, matchIndex));
+    if (m.index > lastIndex) {
+      parts.push(currentText.substring(lastIndex, m.index));
     }
 
-    // リンクを追加
-    parts.push(
-      <a
-        key={matchIndex}
-        href={url}
-        target="_blank"
-        rel="noopener noreferrer"
-        className="slack-link"
-      >
-        {displayText}
-      </a>
-    );
+    // マッチした要素を追加
+    if (m.type === 'mention' && m.userId) {
+      const displayName = userMappings?.[m.userId] || m.userId;
+      parts.push(
+        <span key={`mention-${keyCounter++}`} className="slack-mention">
+          @{displayName}
+        </span>
+      );
+    } else if (m.type === 'link' && m.url && m.displayText) {
+      parts.push(
+        <a
+          key={`link-${keyCounter++}`}
+          href={m.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="slack-link"
+        >
+          {m.displayText}
+        </a>
+      );
+    }
 
-    lastIndex = matchIndex + fullMatch.length;
+    lastIndex = m.index + m.length;
   }
 
   // 残りのテキストを追加
-  if (lastIndex < text.length) {
-    parts.push(text.substring(lastIndex));
+  if (lastIndex < currentText.length) {
+    parts.push(currentText.substring(lastIndex));
   }
 
   return parts.length > 0 ? parts : [text];

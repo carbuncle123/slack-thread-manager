@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query
-from typing import List, Optional
+from typing import List, Optional, Dict
 from pydantic import BaseModel
+import re
 
 from models.thread import Thread, ThreadCreate, ThreadUpdate
 from models.message import Message
@@ -174,6 +175,48 @@ async def get_thread_messages(thread_id: str):
         raise HTTPException(status_code=404, detail="Messages not found")
 
     return messages
+
+
+@router.get("/{thread_id}/user-mappings", response_model=Dict[str, str])
+async def get_thread_user_mappings(thread_id: str):
+    """スレッド内のユーザーIDと表示名のマッピングを取得"""
+    if thread_manager is None:
+        raise HTTPException(status_code=500, detail="Thread manager not initialized")
+
+    # メッセージを取得
+    messages = thread_manager.get_thread_messages(thread_id)
+    if messages is None:
+        raise HTTPException(status_code=404, detail="Messages not found")
+
+    # ユーザーIDを収集
+    user_ids = set()
+
+    # メッセージの送信者から収集
+    for message in messages:
+        if message.user:
+            user_ids.add(message.user)
+
+    # メッセージテキスト内のメンション（<@U...>）から収集
+    mention_pattern = re.compile(r'<@([A-Z0-9]+)>')
+    for message in messages:
+        mentions = mention_pattern.findall(message.text)
+        user_ids.update(mentions)
+
+    # 各ユーザーIDの表示名を取得
+    user_mappings = {}
+    slack_client = thread_manager.slack_client
+
+    for user_id in user_ids:
+        try:
+            display_name = await slack_client.get_user_display_name(user_id)
+            user_mappings[user_id] = display_name
+        except Exception as e:
+            logger.warning(f"Failed to get display name for {user_id}: {e}")
+            # エラー時はIDをそのまま使用
+            user_mappings[user_id] = user_id
+
+    logger.info(f"Retrieved {len(user_mappings)} user mappings for thread {thread_id}")
+    return user_mappings
 
 
 @router.post("/{thread_id}/sync", response_model=SyncResponse)
