@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './FilterPanel.css';
 
 export interface FilterState {
@@ -16,30 +16,71 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
   filters,
   onFiltersChange,
 }) => {
+  // ローカルstateで入力値を管理（即座に反映）
+  const [localSearch, setLocalSearch] = useState(filters.search);
+  const [localDateFrom, setLocalDateFrom] = useState(filters.dateFrom);
+  const [localDateTo, setLocalDateTo] = useState(filters.dateTo);
+
+  // debounce用のタイマーref
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // 親からのfilters変更を反映（ビュー切り替え時など）
+  useEffect(() => {
+    setLocalSearch(filters.search);
+    setLocalDateFrom(filters.dateFrom);
+    setLocalDateTo(filters.dateTo);
+  }, [filters.search, filters.dateFrom, filters.dateTo]);
+
+  // debounce後の親への通知
+  useEffect(() => {
+    // タイマーをクリア
+    if (debounceTimer.current) {
+      clearTimeout(debounceTimer.current);
+    }
+
+    // 300ms後に親に通知
+    debounceTimer.current = setTimeout(() => {
+      onFiltersChange({
+        search: localSearch,
+        dateFrom: localDateFrom,
+        dateTo: localDateTo
+      });
+    }, 300);
+
+    // クリーンアップ
+    return () => {
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+    };
+  }, [localSearch, localDateFrom, localDateTo, onFiltersChange]);
+
+  // 検索入力の変更ハンドラ（ローカルstateのみ更新）
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFiltersChange({ ...filters, search: e.target.value });
+    setLocalSearch(e.target.value);
   };
 
+  // 日付FROM変更ハンドラ（ローカルstateのみ更新）
   const handleDateFromChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFiltersChange({ ...filters, dateFrom: e.target.value });
+    setLocalDateFrom(e.target.value);
   };
 
+  // 日付TO変更ハンドラ（ローカルstateのみ更新）
   const handleDateToChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onFiltersChange({ ...filters, dateTo: e.target.value });
+    setLocalDateTo(e.target.value);
   };
 
+  // クリアハンドラ（ローカルstateのみ更新）
   const handleClearFilters = () => {
-    onFiltersChange({
-      search: '',
-      dateFrom: '',
-      dateTo: '',
-    });
+    setLocalSearch('');
+    setLocalDateFrom('');
+    setLocalDateTo('');
   };
 
   const hasActiveFilters =
-    filters.search ||
-    filters.dateFrom ||
-    filters.dateTo;
+    localSearch ||
+    localDateFrom ||
+    localDateTo;
 
   return (
     <div className="filter-panel-compact">
@@ -50,7 +91,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             id="search-input"
             type="text"
             placeholder="タイトル、要約を検索..."
-            value={filters.search}
+            value={localSearch}
             onChange={handleSearchChange}
             className="search-input"
           />
@@ -61,7 +102,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           <input
             id="date-from"
             type="date"
-            value={filters.dateFrom}
+            value={localDateFrom}
             onChange={handleDateFromChange}
             className="date-input"
             placeholder="開始日"
@@ -70,7 +111,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           <input
             id="date-to"
             type="date"
-            value={filters.dateTo}
+            value={localDateTo}
             onChange={handleDateToChange}
             className="date-input"
             placeholder="終了日"

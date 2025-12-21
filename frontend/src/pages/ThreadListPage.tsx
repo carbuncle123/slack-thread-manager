@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { threadsApi, summariesApi, viewsApi, configApi } from '../lib/api';
@@ -156,10 +156,10 @@ export default function ThreadListPage() {
     setCurrentPage(1); // ソート変更時は最初のページに戻る
   };
 
-  const handleFiltersChange = (newFilters: FilterState) => {
+  const handleFiltersChange = useCallback((newFilters: FilterState) => {
     setFilters(newFilters);
     setCurrentPage(1); // フィルター変更時は最初のページに戻る
-  };
+  }, []);
 
   const handleTagToggle = (tag: string) => {
     setSelectedTags(prev =>
