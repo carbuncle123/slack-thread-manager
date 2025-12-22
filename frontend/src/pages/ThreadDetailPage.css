@@ -126,6 +126,15 @@
   font-weight: 500;
 }
 
+.message-text .slack-quote {
+  margin: 0.5rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #ddd;
+  background-color: #f9f9f9;
+  color: #666;
+  font-style: italic;
+}
+
 .message-reactions {
   display: flex;
   flex-wrap: wrap;
