@@ -2,7 +2,7 @@
 name = "slack-thread-manager-backend"
 version = "1.0.0"
 description = "Slack Thread Manager Backend API"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.109.0",
     "uvicorn[standard]>=0.27.0",
