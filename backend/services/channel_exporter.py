@@ -2,11 +2,13 @@ import asyncio
 import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any, Optional, Tuple
 from collections import defaultdict
 
 from models.channel_export import (
     ChannelDownloadState,
+    ClassificationConfig,
+    ClassificationMatchRule,
     DownloadJobStatus,
 )
 from models.message import Message, Reaction
@@ -133,6 +135,8 @@ class ChannelExporter:
         total_threads_in_session = 0
 
         try:
+            classification_config = self.export_repo.get_classification_config()
+
             for chunk_idx, (oldest, latest) in enumerate(chunks):
                 logger.info(
                     f"[{channel_name}] chunk {chunk_idx + 1}/{len(chunks)}: "
@@ -168,7 +172,14 @@ class ChannelExporter:
                     await asyncio.sleep(RATE_LIMIT_INTERVAL)
 
                 # チャンクのファイル出力（追記/上書き）
-                await self._save_json(channel_dir, chunk_messages, thread_messages, channel_id, channel_name)
+                await self._save_json(
+                    channel_dir=channel_dir,
+                    messages=chunk_messages,
+                    thread_messages=thread_messages,
+                    channel_id=channel_id,
+                    channel_name=channel_name,
+                    classification_config=classification_config,
+                )
                 await self._save_markdown(channel_dir, chunk_messages, thread_messages, channel_name)
 
                 total_messages_in_session += len(chunk_messages)
@@ -315,6 +326,7 @@ class ChannelExporter:
         thread_messages: Dict[str, List[Message]],
         channel_id: str,
         channel_name: str,
+        classification_config: ClassificationConfig,
     ) -> None:
         """JSON形式でメッセージを日別に保存"""
         messages_dir = channel_dir / "messages"
@@ -330,14 +342,22 @@ class ChannelExporter:
             # ユーザー表示名を付与
             user_id = msg.get("user", "")
             user_name = await self.slack_client.get_user_display_name(user_id) if user_id else ""
+            project_ids, account_ids = self._classify_message(
+                msg=msg,
+                channel_id=channel_id,
+                classification_config=classification_config,
+            )
 
             msg_data = {
                 "ts": msg["ts"],
+                "channel_id": channel_id,
                 "user": user_id,
                 "user_name": user_name,
                 "text": msg.get("text", ""),
                 "thread_ts": msg.get("thread_ts"),
                 "reply_count": msg.get("reply_count", 0),
+                "project_ids": project_ids,
+                "account_ids": account_ids,
                 "reactions": [
                     {"name": r.get("name", ""), "count": r.get("count", 0)}
                     for r in msg.get("reactions", [])
@@ -369,6 +389,19 @@ class ChannelExporter:
         FileHandler.ensure_dir(threads_dir)
         for thread_ts, replies in thread_messages.items():
             parent = next((r for r in replies if r.ts == thread_ts), None)
+            thread_project_ids: List[str] = []
+            thread_account_ids: List[str] = []
+            for reply in replies:
+                p_ids, a_ids = self._classify_message(
+                    msg={
+                        "user": reply.user,
+                        "text": reply.text,
+                    },
+                    channel_id=channel_id,
+                    classification_config=classification_config,
+                )
+                thread_project_ids.extend(p_ids)
+                thread_account_ids.extend(a_ids)
             thread_data = {
                 "channel_id": channel_id,
                 "thread_ts": thread_ts,
@@ -378,6 +411,8 @@ class ChannelExporter:
                 "participants": list(set(
                     r.user_name or r.user for r in replies if r.user
                 )),
+                "project_ids": self._dedupe_ids(thread_project_ids),
+                "account_ids": self._dedupe_ids(thread_account_ids),
             }
             FileHandler.write_json(threads_dir / f"{thread_ts}.json", thread_data)
 
@@ -401,6 +436,83 @@ class ChannelExporter:
                 merged[ts] = msg
 
         return sorted(merged.values(), key=lambda m: float(m["ts"]))
+
+    def _classify_message(
+        self,
+        msg: Dict[str, Any],
+        channel_id: str,
+        classification_config: ClassificationConfig,
+    ) -> Tuple[List[str], List[str]]:
+        """メッセージをproject/accountに分類"""
+        project_ids = self._resolve_match_ids(
+            msg=msg,
+            channel_id=channel_id,
+            rules=[p.match for p in classification_config.projects],
+            rule_ids=[p.id for p in classification_config.projects],
+            default_ids=classification_config.defaults.project_ids,
+        )
+        account_ids = self._resolve_match_ids(
+            msg=msg,
+            channel_id=channel_id,
+            rules=[a.match for a in classification_config.accounts],
+            rule_ids=[a.id for a in classification_config.accounts],
+            default_ids=classification_config.defaults.account_ids,
+        )
+        return project_ids, account_ids
+
+    def _resolve_match_ids(
+        self,
+        msg: Dict[str, Any],
+        channel_id: str,
+        rules: List[ClassificationMatchRule],
+        rule_ids: List[str],
+        default_ids: List[str],
+    ) -> List[str]:
+        matched_ids: List[str] = []
+        for idx, rule in enumerate(rules):
+            if self._matches_rule(msg=msg, channel_id=channel_id, rule=rule):
+                matched_ids.append(rule_ids[idx])
+
+        if matched_ids:
+            return self._dedupe_ids(matched_ids)
+        return self._dedupe_ids(default_ids)
+
+    def _matches_rule(
+        self,
+        msg: Dict[str, Any],
+        channel_id: str,
+        rule: ClassificationMatchRule,
+    ) -> bool:
+        user_id = (msg.get("user") or "").strip()
+        text = msg.get("text") or ""
+        text_lower = text.lower()
+
+        has_conditions = bool(rule.channels or rule.users or rule.keywords)
+        if not has_conditions:
+            return False
+
+        if channel_id and channel_id in rule.channels:
+            return True
+        if user_id and user_id in rule.users:
+            return True
+
+        for keyword in rule.keywords:
+            keyword_normalized = keyword.strip().lower()
+            if keyword_normalized and keyword_normalized in text_lower:
+                return True
+
+        return False
+
+    def _dedupe_ids(self, values: List[str]) -> List[str]:
+        deduped: List[str] = []
+        seen = set()
+        for value in values:
+            normalized = (value or "").strip()
+            if not normalized or normalized in seen:
+                continue
+            seen.add(normalized)
+            deduped.append(normalized)
+        return deduped
 
     async def _save_markdown(
         self,
@@ -585,6 +697,8 @@ class ChannelExporter:
                     "first_message": (msg.get("text", ""))[:200],
                     "reply_count": msg.get("reply_count", 0),
                     "participants": participants,
+                    "project_ids": msg.get("project_ids", []),
+                    "account_ids": msg.get("account_ids", []),
                     "created_at": datetime.fromtimestamp(float(thread_ts)).isoformat(),
                 })
 

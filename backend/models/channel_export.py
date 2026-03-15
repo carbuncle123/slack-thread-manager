@@ -1,5 +1,5 @@
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class ExportChannel(BaseModel):
@@ -14,6 +14,41 @@ class ChannelExportConfig(BaseModel):
     channels: List[ExportChannel] = []
     schedule_enabled: bool = False
     schedule_interval_hours: int = 24
+
+
+class ClassificationMatchRule(BaseModel):
+    """project/account判定用のマッチ条件"""
+    channels: List[str] = Field(default_factory=list)
+    keywords: List[str] = Field(default_factory=list)
+    users: List[str] = Field(default_factory=list)
+
+
+class ProjectDefinition(BaseModel):
+    """project定義"""
+    id: str
+    name: str
+    match: ClassificationMatchRule = Field(default_factory=ClassificationMatchRule)
+
+
+class AccountDefinition(BaseModel):
+    """account定義"""
+    id: str
+    name: str
+    match: ClassificationMatchRule = Field(default_factory=ClassificationMatchRule)
+
+
+class ClassificationDefaults(BaseModel):
+    """未分類時のデフォルト値"""
+    project_ids: List[str] = Field(default_factory=lambda: ["unclassified_project"])
+    account_ids: List[str] = Field(default_factory=lambda: ["unclassified_account"])
+
+
+class ClassificationConfig(BaseModel):
+    """project/account分類設定"""
+    version: int = 1
+    projects: List[ProjectDefinition] = Field(default_factory=list)
+    accounts: List[AccountDefinition] = Field(default_factory=list)
+    defaults: ClassificationDefaults = Field(default_factory=ClassificationDefaults)
 
 
 class ChannelDownloadState(BaseModel):

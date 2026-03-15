@@ -1,7 +1,12 @@
 from pathlib import Path
 from typing import Optional, List
 
-from models.channel_export import ChannelExportConfig, ChannelDownloadState, DownloadJobStatus
+from models.channel_export import (
+    ChannelExportConfig,
+    ChannelDownloadState,
+    ClassificationConfig,
+    DownloadJobStatus,
+)
 from utils.file_handler import FileHandler
 from utils.logger import get_logger
 
@@ -15,6 +20,7 @@ class ChannelExportRepository:
         self.data_dir = data_dir
         self.export_dir = data_dir / "channel_export"
         self.config_path = self.export_dir / "config.json"
+        self.classification_path = self.export_dir / "classification.json"
         self.state_path = self.export_dir / "state.json"
         self.job_path = self.export_dir / "job.json"
         FileHandler.ensure_dir(self.export_dir)
@@ -32,6 +38,21 @@ class ChannelExportRepository:
         """エクスポート設定を保存"""
         FileHandler.write_json(self.config_path, config.model_dump())
         logger.info("Saved channel export config")
+
+    def get_classification_config(self) -> ClassificationConfig:
+        """project/account分類設定を取得"""
+        data = FileHandler.read_json(self.classification_path)
+        if data is None:
+            config = ClassificationConfig()
+            FileHandler.write_json(self.classification_path, config.model_dump())
+            logger.info("Created default channel export classification config")
+            return config
+        return ClassificationConfig(**data)
+
+    def save_classification_config(self, config: ClassificationConfig) -> None:
+        """project/account分類設定を保存"""
+        FileHandler.write_json(self.classification_path, config.model_dump())
+        logger.info("Saved channel export classification config")
 
     # --- Download State ---
 
