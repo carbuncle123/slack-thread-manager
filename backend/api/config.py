@@ -11,6 +11,13 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 # 依存性注入用のグローバル変数
 config_repo = None
 reinitialize_func = None
+slack_client = None
+
+
+def set_slack_client(client):
+    """SlackClientを設定"""
+    global slack_client
+    slack_client = client
 
 
 def set_config_repository(repo):
@@ -151,9 +158,21 @@ async def update_default_mention_users(request: DefaultMentionUsersRequest):
     return config
 
 
+@router.get("/slack-auth-status")
+async def get_slack_auth_status():
+    """Slack認証ステータスを取得"""
+    if slack_client is None:
+        return {"auth_valid": False, "error": "Slack client not initialized"}
+
+    return {
+        "auth_valid": slack_client.auth_valid,
+        "error": slack_client.auth_error_message,
+    }
+
+
 @router.put("/slack-credentials", response_model=AppConfig)
 async def update_slack_credentials(request: SlackCredentialsRequest):
-    """Slack認証情報を更新し、即座に反映"""
+    """Slack認証情報を更新し、テスト後に反映"""
     if config_repo is None:
         raise HTTPException(status_code=500, detail="Config repository not initialized")
 
@@ -176,5 +195,25 @@ async def update_slack_credentials(request: SlackCredentialsRequest):
         cookie=request.cookie,
         workspace=config.slack.workspace
     )
+
+    # 新しい認証情報でテスト
+    from services.slack_client import SlackClient
+    test_client = SlackClient(
+        xoxc_token=request.xoxc_token,
+        cookie=request.cookie,
+        workspace=config.slack.workspace
+    )
+    auth_ok = await test_client.test_auth()
+
+    # テスト結果をグローバルのslack_clientに反映
+    if slack_client is not None:
+        slack_client.auth_valid = test_client.auth_valid
+        slack_client.auth_error_message = test_client.auth_error_message
+
+    if not auth_ok:
+        raise HTTPException(
+            status_code=400,
+            detail=f"認証テストに失敗しました: {test_client.auth_error_message}"
+        )
 
     return config

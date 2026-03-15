@@ -218,3 +218,45 @@ select:disabled {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Slack認証エラーバナー */
+.slack-auth-error-banner {
+  background-color: var(--danger-color);
+  color: white;
+  padding: 0.625rem 0;
+  font-size: 0.875rem;
+}
+
+.slack-auth-error-banner .container {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.banner-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+.banner-message {
+  flex: 1;
+}
+
+.btn-banner {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.btn-banner:hover {
+  background: rgba(255, 255, 255, 0.35);
+}

@@ -97,6 +97,12 @@ export interface SyncResponse {
   synced_at: string;
 }
 
+export interface SyncConfig {
+  auto_sync_enabled: boolean;
+  sync_interval_minutes: number;
+  last_sync_at: string | null;
+}
+
 // 要約関連の型
 
 export interface DailySummaryItem {
@@ -132,49 +138,6 @@ export interface SummaryResponse {
   message: string;
 }
 
-// 新規スレッド発見関連の型
-
-export interface DiscoveredThread {
-  channel_id: string;
-  channel_name: string;
-  thread_ts: string;
-  first_message_text: string;
-  first_message_user: string;
-  first_message_user_name: string | null;
-  created_at: string;
-  message_count: number;
-  url: string;
-  matched_condition: string;
-  matched_value: string;
-}
-
-export interface DiscoverRequest {
-  channel_ids?: string[];
-  days?: number;
-}
-
-export interface DiscoverResponse {
-  discovered_threads: DiscoveredThread[];
-  total_count: number;
-  searched_channels: string[];
-}
-
-export interface RegisterThreadsRequest {
-  threads: Array<{
-    channel_id: string;
-    thread_ts: string;
-    title: string;
-    tags: string[];
-    url: string;
-  }>;
-}
-
-export interface RegisterThreadsResponse {
-  success: boolean;
-  registered_count: number;
-  failed_count: number;
-  errors: string[];
-}
 
 // 設定関連の型定義
 export interface MonitoredChannel {
@@ -255,4 +218,43 @@ export interface UpdateViewRequest {
 
 export interface SetDefaultRequest {
   is_default: boolean;
+}
+
+// チャンネルエクスポート関連の型定義
+export interface ExportChannel {
+  channel_id: string;
+  channel_name: string;
+  enabled: boolean;
+}
+
+export interface ChannelExportConfig {
+  channels: ExportChannel[];
+  schedule_enabled: boolean;
+  schedule_interval_hours: number;
+}
+
+export interface ChannelDownloadState {
+  channel_id: string;
+  channel_name: string;
+  last_downloaded_at: string | null;
+  last_message_ts: string | null;
+  total_messages_downloaded: number;
+  total_threads_downloaded: number;
+  status: string;
+  error_message: string | null;
+}
+
+export interface DownloadJobStatus {
+  job_id: string;
+  started_at: string;
+  completed_at: string | null;
+  status: string;
+  channels: ChannelDownloadState[];
+  current_channel: string | null;
+  progress_percent: number;
+}
+
+export interface ChannelExportStatus {
+  job: DownloadJobStatus | null;
+  channels: ChannelDownloadState[];
 }

@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 
 from models.message import Message, Reaction
@@ -8,14 +8,24 @@ from utils.logger import get_logger
 logger = get_logger(__name__)
 
 
+class SlackAuthError(Exception):
+    """Slack認証エラー"""
+    pass
+
+
 class SlackClient:
     """Slack API クライアント (xoxc token + cookie認証)"""
+
+    # 認証エラーとみなすSlack APIエラーコード
+    AUTH_ERROR_CODES = {"invalid_auth", "not_authed", "token_revoked", "token_expired", "account_inactive"}
 
     def __init__(self, xoxc_token: str, cookie: str, workspace: str = ""):
         self.xoxc_token = xoxc_token
         self.cookie = cookie
         self.workspace = workspace
         self.base_url = "https://slack.com/api"
+        self.auth_valid = True
+        self.auth_error_message: Optional[str] = None
         # ユーザー情報のキャッシュ (user_id -> display_name)
         self._user_cache: Dict[str, str] = {}
 
@@ -33,6 +43,9 @@ class SlackClient:
         params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Slack APIリクエストを実行"""
+        if not self.auth_valid:
+            raise SlackAuthError(f"Slack認証が無効です: {self.auth_error_message}")
+
         url = f"{self.base_url}/{endpoint}"
 
         async with httpx.AsyncClient() as client:
@@ -48,6 +61,11 @@ class SlackClient:
 
                 if not data.get("ok"):
                     error = data.get("error", "Unknown error")
+                    if error in self.AUTH_ERROR_CODES:
+                        self.auth_valid = False
+                        self.auth_error_message = error
+                        logger.error(f"Slack auth failed: {error}")
+                        raise SlackAuthError(f"Slack認証エラー: {error}")
                     raise Exception(f"Slack API error: {error}")
 
                 return data
@@ -55,9 +73,39 @@ class SlackClient:
             except httpx.HTTPStatusError as e:
                 logger.error(f"HTTP error occurred: {e}")
                 raise
+            except SlackAuthError:
+                raise
             except Exception as e:
                 logger.error(f"Request failed: {e}")
                 raise
+
+    async def test_auth(self) -> bool:
+        """認証情報をテストし、auth_validフラグを更新する"""
+        url = f"{self.base_url}/auth.test"
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.get(
+                    url,
+                    headers=self._get_headers(),
+                    timeout=10.0
+                )
+                data = response.json()
+                if data.get("ok"):
+                    self.auth_valid = True
+                    self.auth_error_message = None
+                    logger.info("Slack auth test succeeded")
+                    return True
+                else:
+                    error = data.get("error", "Unknown error")
+                    self.auth_valid = False
+                    self.auth_error_message = error
+                    logger.error(f"Slack auth test failed: {error}")
+                    return False
+            except Exception as e:
+                self.auth_valid = False
+                self.auth_error_message = str(e)
+                logger.error(f"Slack auth test error: {e}")
+                return False
 
     async def get_thread_messages(
         self,
@@ -199,6 +247,33 @@ class SlackClient:
             return data.get("messages", [])
         except Exception as e:
             logger.error(f"Failed to fetch channel history: {e}")
+            raise
+
+    async def get_channel_history_with_metadata(
+        self,
+        channel_id: str,
+        oldest: Optional[str] = None,
+        latest: Optional[str] = None,
+        limit: int = 200
+    ) -> Tuple[List[Dict[str, Any]], bool]:
+        """チャンネルの履歴を取得（has_more付き）"""
+        params: Dict[str, Any] = {
+            "channel": channel_id,
+            "limit": limit
+        }
+
+        if oldest:
+            params["oldest"] = oldest
+        if latest:
+            params["latest"] = latest
+
+        try:
+            data = await self._make_request("conversations.history", params=params)
+            messages = data.get("messages", [])
+            has_more = data.get("has_more", False)
+            return messages, has_more
+        except Exception as e:
+            logger.error(f"Failed to fetch channel history with metadata: {e}")
             raise
 
     async def find_threads_with_mention(

@@ -38,6 +38,7 @@ export const SlackCredentialsModal: React.FC<SlackCredentialsModalProps> = ({
       configApi.updateSlackCredentials(xoxcToken, cookie),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['config'] });
+      queryClient.invalidateQueries({ queryKey: ['slack-auth-status'] });
       alert('Slack認証情報を更新しました。新しい認証情報で通信が可能になります。');
       onClose();
     },

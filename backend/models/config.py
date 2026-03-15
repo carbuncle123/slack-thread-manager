@@ -70,6 +70,9 @@ class Settings(BaseSettings):
     sync_interval_minutes: int = 30
     log_level: str = "INFO"
 
+    # Channel Export
+    channel_export_dir: str = ""
+
     # Server
     backend_host: str = "127.0.0.1"
     backend_port: int = 8000

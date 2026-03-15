@@ -10,7 +10,7 @@ import { ViewSelector } from '../components/ViewSelector';
 import { ViewFormModal } from '../components/ViewFormModal';
 import { ViewManagementModal } from '../components/ViewManagementModal';
 import { SlackCredentialsModal } from '../components/SlackCredentialsModal';
-import type { Thread, ViewFilters, ViewSort, ThreadView } from '../types';
+import type { Thread, ViewFilters, ViewSort, ThreadView, SyncConfig } from '../types';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ja';
@@ -61,6 +61,9 @@ export default function ThreadListPage() {
   // Slack認証情報モーダル状態
   const [isSlackCredentialsModalOpen, setIsSlackCredentialsModalOpen] = useState(false);
 
+  // 同期設定状態
+  const [showSyncSettings, setShowSyncSettings] = useState(false);
+
   // React Query クライアント
   const queryClient = useQueryClient();
 
@@ -68,6 +71,12 @@ export default function ThreadListPage() {
   const { data: appConfig } = useQuery({
     queryKey: ['config'],
     queryFn: () => configApi.getConfig(),
+  });
+
+  // 同期設定を取得
+  const { data: syncConfig, refetch: refetchSyncConfig } = useQuery({
+    queryKey: ['syncConfig'],
+    queryFn: () => threadsApi.getSyncConfig(),
   });
 
   // ビュー一覧を取得
@@ -132,6 +141,16 @@ export default function ThreadListPage() {
     });
     return Array.from(tagSet).sort();
   }, [allThreadsData]);
+
+  const handleSyncConfigUpdate = async (updates: Partial<SyncConfig>) => {
+    if (!syncConfig) return;
+    try {
+      await threadsApi.updateSyncConfig({ ...syncConfig, ...updates });
+      refetchSyncConfig();
+    } catch (err) {
+      console.error('Failed to update sync config:', err);
+    }
+  };
 
   const handleSyncAll = async () => {
     try {
@@ -397,14 +416,55 @@ export default function ThreadListPage() {
           <button onClick={handleCreateClick} className="btn btn-primary">
             新規スレッド追加
           </button>
-          <Link to="/discover" className="btn btn-secondary">
-            新規スレッド発見
-          </Link>
-          <button onClick={handleSyncAll} className="btn btn-secondary">
+<button onClick={handleSyncAll} className="btn btn-secondary">
             全スレッド同期
+          </button>
+          <button
+            onClick={() => setShowSyncSettings(!showSyncSettings)}
+            className={`btn btn-secondary ${syncConfig?.auto_sync_enabled ? 'btn-active' : ''}`}
+            title="定期同期設定"
+          >
+            定期同期 {syncConfig?.auto_sync_enabled ? 'ON' : 'OFF'}
           </button>
         </div>
       </div>
+
+      {/* 定期同期設定パネル */}
+      {showSyncSettings && syncConfig && (
+        <div className="sync-settings-panel">
+          <div className="sync-settings-row">
+            <label className="sync-settings-label">
+              <input
+                type="checkbox"
+                checked={syncConfig.auto_sync_enabled}
+                onChange={(e) => handleSyncConfigUpdate({ auto_sync_enabled: e.target.checked })}
+              />
+              定期同期を有効にする
+            </label>
+            <div className="sync-settings-interval">
+              <label>間隔:</label>
+              <select
+                value={syncConfig.sync_interval_minutes}
+                onChange={(e) => handleSyncConfigUpdate({ sync_interval_minutes: Number(e.target.value) })}
+                disabled={!syncConfig.auto_sync_enabled}
+              >
+                <option value={15}>15分</option>
+                <option value={30}>30分</option>
+                <option value={60}>1時間</option>
+                <option value={120}>2時間</option>
+                <option value={360}>6時間</option>
+                <option value={720}>12時間</option>
+                <option value={1440}>24時間</option>
+              </select>
+            </div>
+            {syncConfig.last_sync_at && (
+              <span className="sync-settings-last">
+                最終同期: {dayjs(syncConfig.last_sync_at).fromNow()}
+              </span>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* ビュー選択 */}
       <div className="view-controls">

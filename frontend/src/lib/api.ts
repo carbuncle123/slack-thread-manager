@@ -6,12 +6,9 @@ import type {
   ThreadUpdate,
   Message,
   SyncResponse,
+  SyncConfig,
   ThreadSummary,
   SummaryResponse,
-  DiscoverRequest,
-  DiscoverResponse,
-  RegisterThreadsRequest,
-  RegisterThreadsResponse,
   QueryRequest,
   QueryResponse,
   SearchHistoryItem,
@@ -20,7 +17,10 @@ import type {
   ThreadView,
   CreateViewRequest,
   UpdateViewRequest,
-  SetDefaultRequest
+  SetDefaultRequest,
+  ExportChannel,
+  ChannelExportConfig,
+  ChannelExportStatus,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -103,6 +103,18 @@ export const threadsApi = {
     return response.data;
   },
 
+  // 同期設定取得
+  getSyncConfig: async (): Promise<SyncConfig> => {
+    const response = await api.get<SyncConfig>('/api/sync/config');
+    return response.data;
+  },
+
+  // 同期設定更新
+  updateSyncConfig: async (config: SyncConfig): Promise<SyncConfig> => {
+    const response = await api.put<SyncConfig>('/api/sync/config', config);
+    return response.data;
+  },
+
   // スレッド質問（LLM）
   queryThread: async (threadId: string, query: string): Promise<{ answer: string; confidence: number }> => {
     const response = await api.post<{ answer: string; confidence: number }>(
@@ -147,19 +159,6 @@ export const summariesApi = {
   },
 };
 
-export const discoverApi = {
-  // 新規スレッド発見
-  discoverThreads: async (request: DiscoverRequest = {}): Promise<DiscoverResponse> => {
-    const response = await api.post<DiscoverResponse>('/api/discover/threads', request);
-    return response.data;
-  },
-
-  // スレッド一括登録
-  registerThreads: async (request: RegisterThreadsRequest): Promise<RegisterThreadsResponse> => {
-    const response = await api.post<RegisterThreadsResponse>('/api/discover/register', request);
-    return response.data;
-  },
-};
 
 export const searchApi = {
   // 自然言語質問
@@ -240,6 +239,12 @@ export const configApi = {
     return response.data;
   },
 
+  // Slack認証ステータス取得
+  getSlackAuthStatus: async (): Promise<{ auth_valid: boolean; error: string | null }> => {
+    const response = await api.get<{ auth_valid: boolean; error: string | null }>('/api/config/slack-auth-status');
+    return response.data;
+  },
+
   // Slack認証情報更新
   updateSlackCredentials: async (xoxcToken: string, cookie: string): Promise<AppConfig> => {
     const response = await api.put<AppConfig>('/api/config/slack-credentials', {
@@ -307,5 +312,49 @@ export const tagsApi = {
   // タグ削除
   deleteTag: async (name: string): Promise<void> => {
     await api.delete(`/api/tags/${encodeURIComponent(name)}`);
+  },
+};
+
+export const channelExportApi = {
+  // エクスポート設定取得
+  getConfig: async (): Promise<ChannelExportConfig> => {
+    const response = await api.get<ChannelExportConfig>('/api/channel-export/config');
+    return response.data;
+  },
+
+  // エクスポート設定更新
+  updateConfig: async (config: ChannelExportConfig): Promise<ChannelExportConfig> => {
+    const response = await api.put<ChannelExportConfig>('/api/channel-export/config', config);
+    return response.data;
+  },
+
+  // チャンネル追加
+  addChannel: async (channel: ExportChannel): Promise<ChannelExportConfig> => {
+    const response = await api.post<ChannelExportConfig>('/api/channel-export/config/channels', channel);
+    return response.data;
+  },
+
+  // チャンネル削除
+  deleteChannel: async (channelId: string): Promise<ChannelExportConfig> => {
+    const response = await api.delete<ChannelExportConfig>(`/api/channel-export/config/channels/${channelId}`);
+    return response.data;
+  },
+
+  // 全チャンネルダウンロード開始
+  downloadAll: async (): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/api/channel-export/download');
+    return response.data;
+  },
+
+  // 単一チャンネルダウンロード開始
+  downloadChannel: async (channelId: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(`/api/channel-export/download/${channelId}`);
+    return response.data;
+  },
+
+  // ステータス取得
+  getStatus: async (): Promise<ChannelExportStatus> => {
+    const response = await api.get<ChannelExportStatus>('/api/channel-export/status');
+    return response.data;
   },
 };
