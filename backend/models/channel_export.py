@@ -26,6 +26,9 @@ class ChannelDownloadState(BaseModel):
     total_threads_downloaded: int = 0
     status: str = "pending"  # pending | downloading | completed | error
     error_message: Optional[str] = None
+    # 初回DLの進捗管理: どこまで遡って取得済みか（ISOフォーマット）
+    initial_fetch_oldest: Optional[str] = None
+    initial_fetch_done: bool = False
 
 
 class DownloadJobStatus(BaseModel):

@@ -20,6 +20,9 @@ logger = get_logger(__name__)
 # 初回ダウンロード: 過去1年分
 INITIAL_DOWNLOAD_DAYS = 365
 
+# 初回ダウンロードのチャンクサイズ（日数）
+CHUNK_DAYS = 30
+
 # レート制限: API呼び出し間隔（秒）
 RATE_LIMIT_INTERVAL = 1.2
 
@@ -77,12 +80,43 @@ class ChannelExporter:
         logger.info(f"Download job {job.job_id} completed: {len(job.channels)} channels")
         return job
 
+    def _build_chunks(self, state: ChannelDownloadState) -> List[tuple]:
+        """ダウンロード対象の時間チャンクを構築する。
+
+        初回: 過去INITIAL_DOWNLOAD_DAYS分を CHUNK_DAYS ごとに分割（新しい方から）。
+              中断再開時は initial_fetch_oldest 以前の未取得分のみ。
+        差分更新（initial_fetch_done=True）: last_message_ts から現在まで。
+        """
+        now = datetime.now()
+        chunks: List[tuple] = []
+
+        if state.initial_fetch_done:
+            # 差分更新: 前回の最新メッセージから現在まで（1チャンク）
+            oldest = state.last_message_ts or str(now.timestamp())
+            chunks.append((oldest, str(now.timestamp())))
+        else:
+            # 初回ダウンロード: 月単位チャンクで遡る
+            target_oldest = now - timedelta(days=INITIAL_DOWNLOAD_DAYS)
+
+            # 中断再開: すでに取得済みの範囲より古い部分から再開
+            if state.initial_fetch_oldest:
+                chunk_end = datetime.fromisoformat(state.initial_fetch_oldest)
+            else:
+                chunk_end = now
+
+            while chunk_end > target_oldest:
+                chunk_start = max(chunk_end - timedelta(days=CHUNK_DAYS), target_oldest)
+                chunks.append((str(chunk_start.timestamp()), str(chunk_end.timestamp())))
+                chunk_end = chunk_start
+
+        return chunks
+
     async def download_channel(
         self,
         channel_id: str,
         channel_name: str,
     ) -> ChannelDownloadState:
-        """単一チャンネルをダウンロード"""
+        """単一チャンネルをダウンロード（月単位チャンクで段階的に実行）"""
         state = self.export_repo.get_state(channel_id) or ChannelDownloadState(
             channel_id=channel_id,
             channel_name=channel_name,
@@ -91,60 +125,92 @@ class ChannelExporter:
         state.error_message = None
         self.export_repo.save_state(state)
 
+        channel_dir = self._get_channel_dir(channel_id, channel_name)
+        chunks = self._build_chunks(state)
+        is_incremental = state.initial_fetch_done
+
+        total_messages_in_session = 0
+        total_threads_in_session = 0
+
         try:
-            # 常に全期間のチャンネル履歴を取得（スレッド返信の更新検出のため）
-            oldest = str((datetime.now() - timedelta(days=INITIAL_DOWNLOAD_DAYS)).timestamp())
-            latest = str(datetime.now().timestamp())
+            for chunk_idx, (oldest, latest) in enumerate(chunks):
+                logger.info(
+                    f"[{channel_name}] chunk {chunk_idx + 1}/{len(chunks)}: "
+                    f"{datetime.fromtimestamp(float(oldest)).strftime('%Y-%m-%d')} ~ "
+                    f"{datetime.fromtimestamp(float(latest)).strftime('%Y-%m-%d')}"
+                )
 
-            # メッセージ取得
-            all_messages = await self._fetch_all_messages(channel_id, oldest, latest)
-            logger.info(f"Fetched {len(all_messages)} messages from {channel_name}")
+                # メッセージ取得
+                chunk_messages = await self._fetch_all_messages(channel_id, oldest, latest)
+                if not chunk_messages:
+                    # 初回チャンクの進捗を保存して次へ
+                    if not is_incremental:
+                        state.initial_fetch_oldest = datetime.fromtimestamp(float(oldest)).isoformat()
+                        self.export_repo.save_state(state)
+                    continue
 
-            if not all_messages:
-                state.status = "completed"
+                # スレッド返信を取得
+                thread_messages: Dict[str, List[Message]] = {}
+                for msg in chunk_messages:
+                    if msg.get("reply_count", 0) <= 0:
+                        continue
+                    thread_ts = msg["ts"]
+
+                    # 差分更新時は、前回DL以降に返信があったスレッドのみ取得
+                    if is_incremental and state.last_message_ts:
+                        latest_reply = msg.get("latest_reply", "")
+                        if latest_reply and float(latest_reply) <= float(state.last_message_ts):
+                            continue
+
+                    replies = await self._fetch_thread_replies(channel_id, thread_ts)
+                    if replies:
+                        thread_messages[thread_ts] = replies
+                    await asyncio.sleep(RATE_LIMIT_INTERVAL)
+
+                # チャンクのファイル出力（追記/上書き）
+                await self._save_json(channel_dir, chunk_messages, thread_messages, channel_id, channel_name)
+                await self._save_markdown(channel_dir, chunk_messages, thread_messages, channel_name)
+
+                total_messages_in_session += len(chunk_messages)
+                total_threads_in_session += len(thread_messages)
+
+                # チャンクごとに進捗を保存（中断再開可能に）
+                newest_ts = max(msg["ts"] for msg in chunk_messages)
+                if not state.last_message_ts or float(newest_ts) > float(state.last_message_ts):
+                    state.last_message_ts = newest_ts
+
+                if not is_incremental:
+                    state.initial_fetch_oldest = datetime.fromtimestamp(float(oldest)).isoformat()
+
+                state.total_messages_downloaded += len(chunk_messages)
+                state.total_threads_downloaded += len(thread_messages)
                 state.last_downloaded_at = datetime.now().isoformat()
                 self.export_repo.save_state(state)
-                return state
 
-            # スレッド返信を取得
-            # 差分更新時: latest_replyが前回DL以降のスレッドのみ再取得
-            # 初回: 全スレッド取得
-            thread_messages: Dict[str, List[Message]] = {}
-            for msg in all_messages:
-                if msg.get("reply_count", 0) <= 0:
-                    continue
-                thread_ts = msg["ts"]
+                logger.info(
+                    f"[{channel_name}] chunk {chunk_idx + 1} done: "
+                    f"{len(chunk_messages)} messages, {len(thread_messages)} threads"
+                )
 
-                # 差分更新時は、前回DL以降に返信があったスレッドのみ取得
-                if state.last_message_ts:
-                    latest_reply = msg.get("latest_reply", "")
-                    if latest_reply and float(latest_reply) <= float(state.last_message_ts):
-                        continue
+            # 初回DL完了
+            if not is_incremental:
+                state.initial_fetch_done = True
 
-                replies = await self._fetch_thread_replies(channel_id, thread_ts)
-                if replies:
-                    thread_messages[thread_ts] = replies
-                await asyncio.sleep(RATE_LIMIT_INTERVAL)
+            # メタデータ・索引は全チャンク完了後にローカルファイルから再構築
+            if total_messages_in_session > 0:
+                all_local_messages = self._load_all_local_messages(channel_dir)
+                all_thread_messages = self._load_all_local_threads(channel_dir)
 
-            # ファイル出力
-            channel_dir = self._get_channel_dir(channel_id, channel_name)
-            await self._save_json(channel_dir, all_messages, thread_messages, channel_id, channel_name)
-            await self._save_markdown(channel_dir, all_messages, thread_messages, channel_name)
-            self._save_metadata(channel_dir, channel_id, channel_name, all_messages, thread_messages)
-            self._save_thread_index(channel_dir, all_messages, thread_messages)
+                if all_local_messages:
+                    self._save_metadata(channel_dir, channel_id, channel_name, all_local_messages, all_thread_messages)
+                    self._save_thread_index(channel_dir, all_local_messages, all_thread_messages)
 
-            # 状態更新
-            newest_ts = max(msg["ts"] for msg in all_messages)
-            state.last_message_ts = newest_ts
-            state.last_downloaded_at = datetime.now().isoformat()
-            state.total_messages_downloaded = len(all_messages)
-            state.total_threads_downloaded = len(thread_messages)
             state.status = "completed"
             self.export_repo.save_state(state)
 
             logger.info(
                 f"Channel {channel_name} download completed: "
-                f"{len(all_messages)} messages, {len(thread_messages)} threads"
+                f"{total_messages_in_session} messages, {total_threads_in_session} threads in this session"
             )
             return state
 
@@ -154,6 +220,46 @@ class ChannelExporter:
             self.export_repo.save_state(state)
             logger.error(f"Failed to download channel {channel_name}: {e}")
             return state
+
+    def _load_all_local_messages(self, channel_dir: Path) -> List[Dict[str, Any]]:
+        """ローカルに保存済みの日別JSONからメッセージ一覧を構築"""
+        messages_dir = channel_dir / "messages"
+        all_messages: List[Dict[str, Any]] = []
+
+        if not messages_dir.exists():
+            return all_messages
+
+        for json_file in sorted(messages_dir.rglob("*.json")):
+            data = FileHandler.read_json(json_file)
+            if data and "messages" in data:
+                all_messages.extend(data["messages"])
+
+        all_messages.sort(key=lambda m: float(m["ts"]))
+        return all_messages
+
+    def _load_all_local_threads(self, channel_dir: Path) -> Dict[str, List[Message]]:
+        """ローカルに保存済みのスレッドJSONからスレッド返信を構築"""
+        threads_dir = channel_dir / "threads"
+        thread_messages: Dict[str, List[Message]] = {}
+
+        if not threads_dir.exists():
+            return thread_messages
+
+        for thread_file in threads_dir.glob("*.json"):
+            thread_data = FileHandler.read_json(thread_file)
+            if not thread_data:
+                continue
+            ts = thread_data.get("thread_ts", "")
+            msgs: List[Message] = []
+            parent_data = thread_data.get("parent_message")
+            if parent_data:
+                msgs.append(Message(**parent_data))
+            for r in thread_data.get("replies", []):
+                msgs.append(Message(**r))
+            if msgs:
+                thread_messages[ts] = msgs
+
+        return thread_messages
 
     async def _fetch_all_messages(
         self,

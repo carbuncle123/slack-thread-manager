@@ -242,6 +242,8 @@ export interface ChannelDownloadState {
   total_threads_downloaded: number;
   status: string;
   error_message: string | null;
+  initial_fetch_oldest: string | null;
+  initial_fetch_done: boolean;
 }
 
 export interface DownloadJobStatus {
