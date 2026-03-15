@@ -110,6 +110,7 @@ def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
     threads.set_thread_manager(thread_manager)
     sync.set_thread_manager(thread_manager)
     sync.set_config_repository(config_repo)
+    config_api.set_slack_client(slack_client)
     channel_export_api.set_channel_exporter(channel_exporter)
 
     logger.info("Slack クライアントとサービスを再初期化しました")
@@ -161,6 +162,7 @@ sync.set_thread_manager(thread_manager)
 sync.set_config_repository(config_repo)
 config_api.set_config_repository(config_repo)
 config_api.set_reinitialize_function(reinitialize_slack_client)
+config_api.set_slack_client(slack_client)
 views.set_view_repository(view_repo)
 tags.set_tag_repository(tag_repo)
 channel_export_api.set_export_repository(export_repo)
@@ -207,9 +209,11 @@ async def scheduled_export_loop():
     while True:
         try:
             config = export_repo.get_config()
-            if config.schedule_enabled:
+            if config.schedule_enabled and slack_client.auth_valid:
                 logger.info("Starting scheduled channel export")
                 await channel_exporter.download_all_channels()
+            elif not slack_client.auth_valid:
+                logger.warning("Skipping scheduled export: Slack auth invalid")
             interval = config.schedule_interval_hours * 3600
         except Exception as e:
             logger.error(f"Scheduled export failed: {e}")
@@ -222,7 +226,7 @@ async def scheduled_thread_sync_loop():
     while True:
         try:
             sync_config = config_repo.get_or_create_default().sync
-            if sync_config.auto_sync_enabled:
+            if sync_config.auto_sync_enabled and slack_client.auth_valid:
                 logger.info("Starting scheduled thread sync")
                 result = await thread_manager.sync_all_threads()
                 logger.info(
@@ -235,6 +239,8 @@ async def scheduled_thread_sync_loop():
                 app_cfg = config_repo.get_or_create_default()
                 app_cfg.sync.last_sync_at = datetime.now().isoformat()
                 config_repo.save(app_cfg)
+            elif not slack_client.auth_valid:
+                logger.warning("Skipping scheduled thread sync: Slack auth invalid")
             interval = sync_config.sync_interval_minutes * 60
         except Exception as e:
             logger.error(f"Scheduled thread sync failed: {e}")

@@ -239,6 +239,12 @@ export const configApi = {
     return response.data;
   },
 
+  // Slack認証ステータス取得
+  getSlackAuthStatus: async (): Promise<{ auth_valid: boolean; error: string | null }> => {
+    const response = await api.get<{ auth_valid: boolean; error: string | null }>('/api/config/slack-auth-status');
+    return response.data;
+  },
+
   // Slack認証情報更新
   updateSlackCredentials: async (xoxcToken: string, cookie: string): Promise<AppConfig> => {
     const response = await api.put<AppConfig>('/api/config/slack-credentials', {
