@@ -20,9 +20,9 @@ from services.slack_client import SlackClient
 from services.thread_manager import ThreadManager
 from services.chatgpt_client import ChatGPTClient
 from services.summary_generator import SummaryGenerator
-from services.thread_discovery import ThreadDiscoveryService
+
 from services.channel_exporter import ChannelExporter
-from api import threads, sync, config as config_api, summaries, discover, search, views, tags
+from api import threads, sync, config as config_api, summaries, search, views, tags
 from api import channel_export as channel_export_api
 from services.claude_agent import ClaudeAgentClient
 from utils.logger import setup_logger
@@ -82,7 +82,7 @@ thread_manager = ThreadManager(
 
 def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
     """Slack クライアントとそれに依存するサービスを再初期化"""
-    global slack_client, thread_manager, discovery_service, channel_exporter
+    global slack_client, thread_manager, channel_exporter
 
     # 新しいSlackクライアントを作成
     slack_client = SlackClient(
@@ -98,13 +98,6 @@ def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
         slack_client=slack_client
     )
 
-    # ThreadDiscoveryServiceを再初期化
-    discovery_service = ThreadDiscoveryService(
-        slack_client=slack_client,
-        thread_repo=thread_repo,
-        config_repo=config_repo
-    )
-
     # ChannelExporterを再初期化
     channel_exporter = ChannelExporter(
         slack_client=slack_client,
@@ -117,7 +110,6 @@ def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
     threads.set_thread_manager(thread_manager)
     sync.set_thread_manager(thread_manager)
     sync.set_config_repository(config_repo)
-    discover.discovery_service = discovery_service
     channel_export_api.set_channel_exporter(channel_exporter)
 
     logger.info("Slack クライアントとサービスを再初期化しました")
@@ -145,13 +137,6 @@ if chatgpt_client:
     )
     logger.info("要約生成サービス初期化完了")
 
-# スレッド発見サービス初期化
-discovery_service = ThreadDiscoveryService(
-    slack_client=slack_client,
-    thread_repo=thread_repo,
-    config_repo=config_repo
-)
-logger.info("スレッド発見サービス初期化完了")
 
 # FastAPI アプリケーション
 app = FastAPI(
@@ -176,8 +161,6 @@ sync.set_thread_manager(thread_manager)
 sync.set_config_repository(config_repo)
 config_api.set_config_repository(config_repo)
 config_api.set_reinitialize_function(reinitialize_slack_client)
-discover.discovery_service = discovery_service
-discover.thread_repo = thread_repo
 views.set_view_repository(view_repo)
 tags.set_tag_repository(tag_repo)
 channel_export_api.set_export_repository(export_repo)
@@ -192,7 +175,7 @@ if summary_generator:
 app.include_router(threads.router)
 app.include_router(sync.router)
 app.include_router(config_api.router)
-app.include_router(discover.router, prefix="/api/discover", tags=["discover"])
+
 app.include_router(search.router, prefix="/api", tags=["search"])
 app.include_router(views.router)
 app.include_router(tags.router)

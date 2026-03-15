@@ -416,10 +416,7 @@ export default function ThreadListPage() {
           <button onClick={handleCreateClick} className="btn btn-primary">
             新規スレッド追加
           </button>
-          <Link to="/discover" className="btn btn-secondary">
-            新規スレッド発見
-          </Link>
-          <button onClick={handleSyncAll} className="btn btn-secondary">
+<button onClick={handleSyncAll} className="btn btn-secondary">
             全スレッド同期
           </button>
           <button

@@ -9,10 +9,6 @@ import type {
   SyncConfig,
   ThreadSummary,
   SummaryResponse,
-  DiscoverRequest,
-  DiscoverResponse,
-  RegisterThreadsRequest,
-  RegisterThreadsResponse,
   QueryRequest,
   QueryResponse,
   SearchHistoryItem,
@@ -163,19 +159,6 @@ export const summariesApi = {
   },
 };
 
-export const discoverApi = {
-  // 新規スレッド発見
-  discoverThreads: async (request: DiscoverRequest = {}): Promise<DiscoverResponse> => {
-    const response = await api.post<DiscoverResponse>('/api/discover/threads', request);
-    return response.data;
-  },
-
-  // スレッド一括登録
-  registerThreads: async (request: RegisterThreadsRequest): Promise<RegisterThreadsResponse> => {
-    const response = await api.post<RegisterThreadsResponse>('/api/discover/register', request);
-    return response.data;
-  },
-};
 
 export const searchApi = {
   // 自然言語質問
