@@ -352,11 +352,17 @@ class ChannelExporter:
             month_str, date_str = date_key.split("/")
             day_dir = messages_dir / month_str
             FileHandler.ensure_dir(day_dir)
-            FileHandler.write_json(day_dir / f"{date_str}.json", {
+            day_path = day_dir / f"{date_str}.json"
+
+            existing_data = FileHandler.read_json(day_path) or {}
+            existing_messages = existing_data.get("messages", []) if isinstance(existing_data, dict) else []
+            merged_messages = self._merge_messages_by_ts(existing_messages, day_messages)
+
+            FileHandler.write_json(day_path, {
                 "channel_id": channel_id,
                 "channel_name": channel_name,
                 "date": date_str,
-                "messages": day_messages,
+                "messages": merged_messages,
             })
 
         # スレッドJSONファイルを保存
@@ -375,6 +381,27 @@ class ChannelExporter:
             }
             FileHandler.write_json(threads_dir / f"{thread_ts}.json", thread_data)
 
+    def _merge_messages_by_ts(
+        self,
+        existing_messages: List[Dict[str, Any]],
+        incoming_messages: List[Dict[str, Any]],
+    ) -> List[Dict[str, Any]]:
+        """日別メッセージをtsキーでマージし、時系列順で返す"""
+        merged: Dict[str, Dict[str, Any]] = {}
+
+        for msg in existing_messages:
+            ts = msg.get("ts")
+            if ts:
+                merged[ts] = msg
+
+        # incomingを後勝ちにして同一tsを更新
+        for msg in incoming_messages:
+            ts = msg.get("ts")
+            if ts:
+                merged[ts] = msg
+
+        return sorted(merged.values(), key=lambda m: float(m["ts"]))
+
     async def _save_markdown(
         self,
         channel_dir: Path,
@@ -382,31 +409,33 @@ class ChannelExporter:
         thread_messages: Dict[str, List[Message]],
         channel_name: str,
     ) -> None:
-        """Markdown形式でメッセージを日別に保存"""
+        """Markdown形式でメッセージを日別に保存（JSONをソースに再構築）"""
         messages_dir = channel_dir / "messages"
         threads_dir = channel_dir / "threads"
 
-        # 日別にグループ化
-        daily_messages: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+        # このチャンクで影響のあった日だけ再構築する
+        affected_dates: Dict[str, str] = {}
         for msg in messages:
             ts = float(msg["ts"])
             date_str = datetime.fromtimestamp(ts).strftime("%Y-%m-%d")
             month_str = datetime.fromtimestamp(ts).strftime("%Y-%m")
-            daily_messages[f"{month_str}/{date_str}"].append(msg)
+            affected_dates[date_str] = month_str
 
         # 日別Markdownファイルを保存
-        for date_key, day_messages in daily_messages.items():
-            month_str, date_str = date_key.split("/")
+        for date_str, month_str in sorted(affected_dates.items()):
             day_dir = messages_dir / month_str
             FileHandler.ensure_dir(day_dir)
+            day_json_path = day_dir / f"{date_str}.json"
+            day_data = FileHandler.read_json(day_json_path) or {}
+            day_messages = day_data.get("messages", []) if isinstance(day_data, dict) else []
+            day_messages = sorted(day_messages, key=lambda m: float(m["ts"]))
 
             md_lines = [f"# #{channel_name} - {date_str}\n"]
 
             for msg in day_messages:
                 ts = float(msg["ts"])
                 time_str = datetime.fromtimestamp(ts).strftime("%H:%M")
-                user_id = msg.get("user", "")
-                user_name = await self.slack_client.get_user_display_name(user_id) if user_id else "unknown"
+                user_name = msg.get("user_name") or msg.get("user") or "unknown"
                 text = msg.get("text", "")
                 reply_count = msg.get("reply_count", 0)
 
@@ -431,8 +460,12 @@ class ChannelExporter:
 
                 # スレッド返信（インライン）
                 thread_ts = msg.get("ts")
-                if thread_ts in thread_messages:
-                    replies = thread_messages[thread_ts]
+                replies = self._get_thread_messages_for_markdown(
+                    thread_ts=thread_ts,
+                    thread_messages=thread_messages,
+                    threads_dir=threads_dir,
+                )
+                if replies:
                     for reply in replies:
                         if reply.ts == thread_ts:
                             continue  # 親メッセージはスキップ
@@ -478,6 +511,33 @@ class ChannelExporter:
 
             md_path = threads_dir / f"{thread_ts}.md"
             md_path.write_text("\n".join(md_lines), encoding="utf-8")
+
+    def _get_thread_messages_for_markdown(
+        self,
+        thread_ts: Optional[str],
+        thread_messages: Dict[str, List[Message]],
+        threads_dir: Path,
+    ) -> List[Message]:
+        """Markdown描画用にスレッドメッセージを取得（メモリ優先、なければJSONから復元）"""
+        if not thread_ts:
+            return []
+
+        if thread_ts in thread_messages:
+            return thread_messages[thread_ts]
+
+        thread_path = threads_dir / f"{thread_ts}.json"
+        thread_data = FileHandler.read_json(thread_path)
+        if not thread_data:
+            return []
+
+        replies: List[Message] = []
+        parent_data = thread_data.get("parent_message")
+        if parent_data:
+            replies.append(Message(**parent_data))
+        for reply_data in thread_data.get("replies", []):
+            replies.append(Message(**reply_data))
+
+        return replies
 
     def _save_metadata(
         self,
