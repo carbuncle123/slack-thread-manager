@@ -5,6 +5,7 @@ import ThreadDetailPage from './pages/ThreadDetailPage';
 import DiscoverPage from './pages/DiscoverPage';
 import SearchPage from './pages/SearchPage';
 import ArchivedThreadsPage from './pages/ArchivedThreadsPage';
+import ChannelExportPage from './pages/ChannelExportPage';
 import './App.css';
 
 const queryClient = new QueryClient({
@@ -33,6 +34,7 @@ function App() {
                 <Link to="/archived" className="nav-link">アーカイブ</Link>
                 <Link to="/search" className="nav-link">検索</Link>
                 <Link to="/discover" className="nav-link">新規発見</Link>
+                <Link to="/export" className="nav-link">データDL</Link>
               </nav>
             </div>
           </header>
@@ -45,6 +47,7 @@ function App() {
                 <Route path="/archived" element={<ArchivedThreadsPage />} />
                 <Route path="/discover" element={<DiscoverPage />} />
                 <Route path="/search" element={<SearchPage />} />
+                <Route path="/export" element={<ChannelExportPage />} />
               </Routes>
             </div>
           </main>

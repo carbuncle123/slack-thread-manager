@@ -256,3 +256,42 @@ export interface UpdateViewRequest {
 export interface SetDefaultRequest {
   is_default: boolean;
 }
+
+// チャンネルエクスポート関連の型定義
+export interface ExportChannel {
+  channel_id: string;
+  channel_name: string;
+  enabled: boolean;
+}
+
+export interface ChannelExportConfig {
+  channels: ExportChannel[];
+  schedule_enabled: boolean;
+  schedule_interval_hours: number;
+}
+
+export interface ChannelDownloadState {
+  channel_id: string;
+  channel_name: string;
+  last_downloaded_at: string | null;
+  last_message_ts: string | null;
+  total_messages_downloaded: number;
+  total_threads_downloaded: number;
+  status: string;
+  error_message: string | null;
+}
+
+export interface DownloadJobStatus {
+  job_id: string;
+  started_at: string;
+  completed_at: string | null;
+  status: string;
+  channels: ChannelDownloadState[];
+  current_channel: string | null;
+  progress_percent: number;
+}
+
+export interface ChannelExportStatus {
+  job: DownloadJobStatus | null;
+  channels: ChannelDownloadState[];
+}

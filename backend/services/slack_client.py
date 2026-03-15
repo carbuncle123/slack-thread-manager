@@ -1,5 +1,5 @@
 import httpx
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timedelta
 
 from models.message import Message, Reaction
@@ -199,6 +199,33 @@ class SlackClient:
             return data.get("messages", [])
         except Exception as e:
             logger.error(f"Failed to fetch channel history: {e}")
+            raise
+
+    async def get_channel_history_with_metadata(
+        self,
+        channel_id: str,
+        oldest: Optional[str] = None,
+        latest: Optional[str] = None,
+        limit: int = 200
+    ) -> Tuple[List[Dict[str, Any]], bool]:
+        """チャンネルの履歴を取得（has_more付き）"""
+        params: Dict[str, Any] = {
+            "channel": channel_id,
+            "limit": limit
+        }
+
+        if oldest:
+            params["oldest"] = oldest
+        if latest:
+            params["latest"] = latest
+
+        try:
+            data = await self._make_request("conversations.history", params=params)
+            messages = data.get("messages", [])
+            has_more = data.get("has_more", False)
+            return messages, has_more
+        except Exception as e:
+            logger.error(f"Failed to fetch channel history with metadata: {e}")
             raise
 
     async def find_threads_with_mention(

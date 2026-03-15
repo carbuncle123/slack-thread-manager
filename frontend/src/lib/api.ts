@@ -20,7 +20,10 @@ import type {
   ThreadView,
   CreateViewRequest,
   UpdateViewRequest,
-  SetDefaultRequest
+  SetDefaultRequest,
+  ExportChannel,
+  ChannelExportConfig,
+  ChannelExportStatus,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -307,5 +310,49 @@ export const tagsApi = {
   // タグ削除
   deleteTag: async (name: string): Promise<void> => {
     await api.delete(`/api/tags/${encodeURIComponent(name)}`);
+  },
+};
+
+export const channelExportApi = {
+  // エクスポート設定取得
+  getConfig: async (): Promise<ChannelExportConfig> => {
+    const response = await api.get<ChannelExportConfig>('/api/channel-export/config');
+    return response.data;
+  },
+
+  // エクスポート設定更新
+  updateConfig: async (config: ChannelExportConfig): Promise<ChannelExportConfig> => {
+    const response = await api.put<ChannelExportConfig>('/api/channel-export/config', config);
+    return response.data;
+  },
+
+  // チャンネル追加
+  addChannel: async (channel: ExportChannel): Promise<ChannelExportConfig> => {
+    const response = await api.post<ChannelExportConfig>('/api/channel-export/config/channels', channel);
+    return response.data;
+  },
+
+  // チャンネル削除
+  deleteChannel: async (channelId: string): Promise<ChannelExportConfig> => {
+    const response = await api.delete<ChannelExportConfig>(`/api/channel-export/config/channels/${channelId}`);
+    return response.data;
+  },
+
+  // 全チャンネルダウンロード開始
+  downloadAll: async (): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>('/api/channel-export/download');
+    return response.data;
+  },
+
+  // 単一チャンネルダウンロード開始
+  downloadChannel: async (channelId: string): Promise<{ message: string }> => {
+    const response = await api.post<{ message: string }>(`/api/channel-export/download/${channelId}`);
+    return response.data;
+  },
+
+  // ステータス取得
+  getStatus: async (): Promise<ChannelExportStatus> => {
+    const response = await api.get<ChannelExportStatus>('/api/channel-export/status');
+    return response.data;
   },
 };

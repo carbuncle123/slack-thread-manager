@@ -1,0 +1,237 @@
+.export-page {
+  max-width: 100%;
+}
+
+.page-header {
+  margin-bottom: 2rem;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.export-section {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: white;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+}
+
+.export-section h3 {
+  margin: 0 0 1rem;
+  font-size: 1.25rem;
+  color: var(--primary-color);
+}
+
+/* チャンネル追加フォーム */
+.add-channel-form {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-end;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.form-field label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.form-field input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+/* チャンネルリスト */
+.channel-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.channel-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f9f9f9;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.channel-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.channel-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.channel-id {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+.channel-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* スケジュール設定 */
+.schedule-config {
+  display: flex;
+  gap: 1.5rem;
+  align-items: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.schedule-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.schedule-toggle label {
+  font-weight: 600;
+}
+
+.schedule-interval {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.schedule-interval input {
+  width: 80px;
+  padding: 0.5rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+/* ダウンロードステータス */
+.download-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: #f9f9f9;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+}
+
+.status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.status-meta {
+  display: flex;
+  gap: 1rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.completed {
+  background: #e6f4ea;
+  color: #1e7e34;
+}
+
+.status-badge.downloading {
+  background: #e3f2fd;
+  color: #1565c0;
+}
+
+.status-badge.error {
+  background: #fce4ec;
+  color: #c62828;
+}
+
+.status-badge.pending {
+  background: #f5f5f5;
+  color: #666;
+}
+
+/* 進捗バー */
+.progress-bar-container {
+  margin: 1rem 0;
+  padding: 1rem;
+  background: #e3f2fd;
+  border-radius: 6px;
+}
+
+.progress-bar-container p {
+  margin: 0 0 0.5rem;
+  font-weight: 600;
+  color: #1565c0;
+}
+
+.progress-bar {
+  height: 8px;
+  background: #bbdefb;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: #1565c0;
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.error-message {
+  padding: 1rem;
+  background: #fee;
+  border: 1px solid #fcc;
+  border-radius: 4px;
+  color: #c33;
+  margin-bottom: 1rem;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 2rem;
+  color: var(--text-muted);
+}
