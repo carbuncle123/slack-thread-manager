@@ -116,6 +116,7 @@ def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
     # 各ルーターに新しいインスタンスを設定
     threads.set_thread_manager(thread_manager)
     sync.set_thread_manager(thread_manager)
+    sync.set_config_repository(config_repo)
     discover.discovery_service = discovery_service
     channel_export_api.set_channel_exporter(channel_exporter)
 
@@ -172,6 +173,7 @@ app.add_middleware(
 threads.set_thread_manager(thread_manager)
 threads.set_claude_agent(claude_agent_client)
 sync.set_thread_manager(thread_manager)
+sync.set_config_repository(config_repo)
 config_api.set_config_repository(config_repo)
 config_api.set_reinitialize_function(reinitialize_slack_client)
 discover.discovery_service = discovery_service
@@ -232,6 +234,31 @@ async def scheduled_export_loop():
         await asyncio.sleep(interval)
 
 
+async def scheduled_thread_sync_loop():
+    """登録スレッドの定期同期バックグラウンドループ"""
+    while True:
+        try:
+            sync_config = config_repo.get_or_create_default().sync
+            if sync_config.auto_sync_enabled:
+                logger.info("Starting scheduled thread sync")
+                result = await thread_manager.sync_all_threads()
+                logger.info(
+                    f"Scheduled thread sync completed: "
+                    f"{result['synced']} synced, {result['failed']} failed, "
+                    f"{result['new_messages_total']} new messages"
+                )
+                # last_sync_at を更新
+                from datetime import datetime
+                app_cfg = config_repo.get_or_create_default()
+                app_cfg.sync.last_sync_at = datetime.now().isoformat()
+                config_repo.save(app_cfg)
+            interval = sync_config.sync_interval_minutes * 60
+        except Exception as e:
+            logger.error(f"Scheduled thread sync failed: {e}")
+            interval = 1800  # エラー時は30分後にリトライ
+        await asyncio.sleep(interval)
+
+
 @app.on_event("startup")
 async def startup_event():
     """起動時の処理"""
@@ -241,6 +268,9 @@ async def startup_event():
 
     # 定期エクスポートタスクを起動
     asyncio.create_task(scheduled_export_loop())
+
+    # 定期スレッド同期タスクを起動
+    asyncio.create_task(scheduled_thread_sync_loop())
 
 
 @app.on_event("shutdown")

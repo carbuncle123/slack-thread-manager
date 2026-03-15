@@ -97,6 +97,12 @@ export interface SyncResponse {
   synced_at: string;
 }
 
+export interface SyncConfig {
+  auto_sync_enabled: boolean;
+  sync_interval_minutes: number;
+  last_sync_at: string | null;
+}
+
 // 要約関連の型
 
 export interface DailySummaryItem {

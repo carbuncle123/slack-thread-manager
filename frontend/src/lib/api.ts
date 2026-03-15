@@ -6,6 +6,7 @@ import type {
   ThreadUpdate,
   Message,
   SyncResponse,
+  SyncConfig,
   ThreadSummary,
   SummaryResponse,
   DiscoverRequest,
@@ -103,6 +104,18 @@ export const threadsApi = {
   // 全スレッド同期
   syncAll: async (): Promise<any> => {
     const response = await api.post('/api/sync/all');
+    return response.data;
+  },
+
+  // 同期設定取得
+  getSyncConfig: async (): Promise<SyncConfig> => {
+    const response = await api.get<SyncConfig>('/api/sync/config');
+    return response.data;
+  },
+
+  // 同期設定更新
+  updateSyncConfig: async (config: SyncConfig): Promise<SyncConfig> => {
+    const response = await api.put<SyncConfig>('/api/sync/config', config);
     return response.data;
   },
 
