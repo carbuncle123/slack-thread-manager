@@ -14,6 +14,7 @@ from models.channel_export import (
 from models.message import Message, Reaction
 from repositories.channel_export_repository import ChannelExportRepository
 from services.slack_client import SlackClient
+from services.channel_rollup_builder import ChannelRollupBuilder
 from utils.file_handler import FileHandler
 from utils.logger import get_logger
 
@@ -38,6 +39,7 @@ class ChannelExporter:
         export_repo: ChannelExportRepository,
         data_dir: Path,
         export_dir: Optional[str] = None,
+        rollup_builder: Optional[ChannelRollupBuilder] = None,
     ):
         self.slack_client = slack_client
         self.export_repo = export_repo
@@ -46,6 +48,7 @@ class ChannelExporter:
         else:
             self.export_base_dir = data_dir / "channel_exports"
         FileHandler.ensure_dir(self.export_base_dir)
+        self.rollup_builder = rollup_builder or ChannelRollupBuilder(self.export_base_dir)
 
     def _get_channel_dir(self, channel_id: str, channel_name: str) -> Path:
         """チャンネルの出力ディレクトリを取得"""
@@ -215,6 +218,7 @@ class ChannelExporter:
                 if all_local_messages:
                     self._save_metadata(channel_dir, channel_id, channel_name, all_local_messages, all_thread_messages)
                     self._save_thread_index(channel_dir, all_local_messages, all_thread_messages)
+                    self.rollup_builder.rebuild_rollups()
 
             state.status = "completed"
             self.export_repo.save_state(state)

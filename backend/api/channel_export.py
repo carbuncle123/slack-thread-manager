@@ -6,6 +6,7 @@ from models.channel_export import (
     ExportChannel,
     ChannelExportConfig,
     ChannelDownloadState,
+    ClassificationConfig,
     DownloadJobStatus,
 )
 
@@ -14,6 +15,7 @@ router = APIRouter(prefix="/api/channel-export", tags=["channel-export"])
 # 依存性注入用のグローバル変数
 export_repo = None
 channel_exporter = None
+rollup_builder = None
 
 
 def set_export_repository(repo):
@@ -26,6 +28,12 @@ def set_channel_exporter(exporter):
     """ChannelExporterを設定"""
     global channel_exporter
     channel_exporter = exporter
+
+
+def set_rollup_builder(builder):
+    """ChannelRollupBuilderを設定"""
+    global rollup_builder
+    rollup_builder = builder
 
 
 # --- Config ---
@@ -81,6 +89,23 @@ async def delete_export_channel(channel_id: str):
 
     export_repo.save_config(config)
     export_repo.delete_state(channel_id)
+    return config
+
+
+@router.get("/config/classification", response_model=ClassificationConfig)
+async def get_classification_config():
+    """project/account分類設定を取得"""
+    if export_repo is None:
+        raise HTTPException(status_code=500, detail="Export repository not initialized")
+    return export_repo.get_classification_config()
+
+
+@router.put("/config/classification", response_model=ClassificationConfig)
+async def update_classification_config(config: ClassificationConfig):
+    """project/account分類設定を更新"""
+    if export_repo is None:
+        raise HTTPException(status_code=500, detail="Export repository not initialized")
+    export_repo.save_classification_config(config)
     return config
 
 
@@ -142,3 +167,30 @@ async def get_status():
         "job": job.model_dump() if job else None,
         "channels": [s.model_dump() for s in states],
     }
+
+
+# --- Rollups ---
+
+
+@router.get("/rollups/daily", response_model=dict)
+async def get_daily_rollup():
+    """日次ロールアップを取得"""
+    if rollup_builder is None:
+        raise HTTPException(status_code=500, detail="Rollup builder not initialized")
+    return rollup_builder.get_daily_rollup()
+
+
+@router.get("/rollups/weekly", response_model=dict)
+async def get_weekly_rollup():
+    """週次ロールアップを取得"""
+    if rollup_builder is None:
+        raise HTTPException(status_code=500, detail="Rollup builder not initialized")
+    return rollup_builder.get_weekly_rollup()
+
+
+@router.post("/rollups/rebuild", response_model=dict)
+async def rebuild_rollups():
+    """日次・週次ロールアップを再生成"""
+    if rollup_builder is None:
+        raise HTTPException(status_code=500, detail="Rollup builder not initialized")
+    return rollup_builder.rebuild_rollups()

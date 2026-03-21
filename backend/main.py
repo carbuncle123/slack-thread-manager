@@ -22,6 +22,7 @@ from services.chatgpt_client import ChatGPTClient
 from services.summary_generator import SummaryGenerator
 
 from services.channel_exporter import ChannelExporter
+from services.channel_rollup_builder import ChannelRollupBuilder
 from api import threads, sync, config as config_api, summaries, search, views, tags
 from api import channel_export as channel_export_api
 from services.claude_agent import ClaudeAgentClient
@@ -64,11 +65,15 @@ slack_client = SlackClient(
 )
 
 # チャンネルエクスポートサービス初期化
+rollup_builder = ChannelRollupBuilder(
+    export_base_dir=Path(settings.channel_export_dir) if settings.channel_export_dir else data_dir / "channel_exports"
+)
 channel_exporter = ChannelExporter(
     slack_client=slack_client,
     export_repo=export_repo,
     data_dir=data_dir,
     export_dir=settings.channel_export_dir or None,
+    rollup_builder=rollup_builder,
 )
 logger.info("チャンネルエクスポートサービス初期化完了")
 
@@ -82,7 +87,7 @@ thread_manager = ThreadManager(
 
 def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
     """Slack クライアントとそれに依存するサービスを再初期化"""
-    global slack_client, thread_manager, channel_exporter
+    global slack_client, thread_manager, channel_exporter, rollup_builder
 
     # 新しいSlackクライアントを作成
     slack_client = SlackClient(
@@ -98,12 +103,17 @@ def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
         slack_client=slack_client
     )
 
+    rollup_builder = ChannelRollupBuilder(
+        export_base_dir=Path(settings.channel_export_dir) if settings.channel_export_dir else data_dir / "channel_exports"
+    )
+
     # ChannelExporterを再初期化
     channel_exporter = ChannelExporter(
         slack_client=slack_client,
         export_repo=export_repo,
         data_dir=data_dir,
         export_dir=settings.channel_export_dir or None,
+        rollup_builder=rollup_builder,
     )
 
     # 各ルーターに新しいインスタンスを設定
@@ -112,6 +122,7 @@ def reinitialize_slack_client(xoxc_token: str, cookie: str, workspace: str):
     sync.set_config_repository(config_repo)
     config_api.set_slack_client(slack_client)
     channel_export_api.set_channel_exporter(channel_exporter)
+    channel_export_api.set_rollup_builder(rollup_builder)
 
     logger.info("Slack クライアントとサービスを再初期化しました")
 
@@ -167,6 +178,7 @@ views.set_view_repository(view_repo)
 tags.set_tag_repository(tag_repo)
 channel_export_api.set_export_repository(export_repo)
 channel_export_api.set_channel_exporter(channel_exporter)
+channel_export_api.set_rollup_builder(rollup_builder)
 
 # 要約機能が有効な場合のみ登録
 if summary_generator:
