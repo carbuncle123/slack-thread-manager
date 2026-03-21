@@ -235,3 +235,99 @@
   padding: 2rem;
   color: var(--text-muted);
 }
+
+/* metadata 設定 */
+.metadata-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.metadata-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.metadata-group {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  padding-top: 1rem;
+}
+
+.metadata-group h4 {
+  margin: 0 0 0.75rem;
+  color: var(--text-color);
+}
+
+.metadata-add-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.metadata-add-form.users {
+  grid-template-columns: 1fr 1fr auto;
+}
+
+.metadata-add-form input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.metadata-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metadata-item {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: #f9f9f9;
+}
+
+.metadata-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 0.5rem;
+}
+
+.metadata-grid.users {
+  grid-template-columns: 1fr 1fr;
+}
+
+.metadata-grid input {
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+@media (max-width: 768px) {
+  .metadata-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .metadata-add-form.users {
+    grid-template-columns: 1fr;
+  }
+
+  .metadata-item {
+    flex-direction: column;
+  }
+
+  .metadata-grid.users {
+    grid-template-columns: 1fr;
+  }
+}

@@ -16,39 +16,25 @@ class ChannelExportConfig(BaseModel):
     schedule_interval_hours: int = 24
 
 
-class ClassificationMatchRule(BaseModel):
-    """project/account判定用のマッチ条件"""
-    channels: List[str] = Field(default_factory=list)
+class ProjectMetadata(BaseModel):
+    """プロジェクト設定"""
+    project_id: str
+    name: str
+    target_channel_ids: List[str] = Field(default_factory=list)
     keywords: List[str] = Field(default_factory=list)
-    users: List[str] = Field(default_factory=list)
 
 
-class ProjectDefinition(BaseModel):
-    """project定義"""
-    id: str
-    name: str
-    match: ClassificationMatchRule = Field(default_factory=ClassificationMatchRule)
+class UserMetadata(BaseModel):
+    """ユーザー設定"""
+    user_id: str
+    display_name: str
 
 
-class AccountDefinition(BaseModel):
-    """account定義"""
-    id: str
-    name: str
-    match: ClassificationMatchRule = Field(default_factory=ClassificationMatchRule)
-
-
-class ClassificationDefaults(BaseModel):
-    """未分類時のデフォルト値"""
-    project_ids: List[str] = Field(default_factory=lambda: ["unclassified_project"])
-    account_ids: List[str] = Field(default_factory=lambda: ["unclassified_account"])
-
-
-class ClassificationConfig(BaseModel):
-    """project/account分類設定"""
+class ProjectUserMetadataConfig(BaseModel):
+    """プロジェクト/ユーザー設定"""
     version: int = 1
-    projects: List[ProjectDefinition] = Field(default_factory=list)
-    accounts: List[AccountDefinition] = Field(default_factory=list)
-    defaults: ClassificationDefaults = Field(default_factory=ClassificationDefaults)
+    projects: List[ProjectMetadata] = Field(default_factory=list)
+    users: List[UserMetadata] = Field(default_factory=list)
 
 
 class ChannelDownloadState(BaseModel):

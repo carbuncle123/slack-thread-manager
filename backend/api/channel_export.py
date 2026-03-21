@@ -1,13 +1,11 @@
 import asyncio
 from fastapi import APIRouter, HTTPException
-from typing import List, Optional
 
 from models.channel_export import (
     ExportChannel,
     ChannelExportConfig,
-    ChannelDownloadState,
-    ClassificationConfig,
-    DownloadJobStatus,
+    ProjectUserMetadataConfig,
+    UserMetadata,
 )
 
 router = APIRouter(prefix="/api/channel-export", tags=["channel-export"])
@@ -92,21 +90,45 @@ async def delete_export_channel(channel_id: str):
     return config
 
 
-@router.get("/config/classification", response_model=ClassificationConfig)
-async def get_classification_config():
-    """project/account分類設定を取得"""
+@router.get("/config/metadata", response_model=ProjectUserMetadataConfig)
+async def get_metadata_config():
+    """project/user設定を取得"""
     if export_repo is None:
         raise HTTPException(status_code=500, detail="Export repository not initialized")
-    return export_repo.get_classification_config()
+    return export_repo.get_metadata_config()
 
 
-@router.put("/config/classification", response_model=ClassificationConfig)
-async def update_classification_config(config: ClassificationConfig):
-    """project/account分類設定を更新"""
+@router.put("/config/metadata", response_model=ProjectUserMetadataConfig)
+async def update_metadata_config(config: ProjectUserMetadataConfig):
+    """project/user設定を更新"""
     if export_repo is None:
         raise HTTPException(status_code=500, detail="Export repository not initialized")
-    export_repo.save_classification_config(config)
+    export_repo.save_metadata_config(config)
     return config
+
+
+@router.post("/config/metadata/users/refresh-display-names", response_model=ProjectUserMetadataConfig)
+async def refresh_user_display_names():
+    """metadata.users の display_name を Slack から再取得"""
+    if export_repo is None:
+        raise HTTPException(status_code=500, detail="Export repository not initialized")
+    if channel_exporter is None:
+        raise HTTPException(status_code=500, detail="Channel exporter not initialized")
+
+    metadata = export_repo.get_metadata_config()
+    refreshed_users = []
+    for user in metadata.users:
+        display_name = await channel_exporter.slack_client.get_user_display_name(user.user_id)
+        refreshed_users.append(
+            UserMetadata(
+                user_id=user.user_id,
+                display_name=display_name or user.display_name,
+            )
+        )
+
+    metadata.users = refreshed_users
+    export_repo.save_metadata_config(metadata)
+    return metadata
 
 
 # --- Download ---

@@ -260,3 +260,21 @@ export interface ChannelExportStatus {
   job: DownloadJobStatus | null;
   channels: ChannelDownloadState[];
 }
+
+export interface ProjectMetadata {
+  project_id: string;
+  name: string;
+  target_channel_ids: string[];
+  keywords: string[];
+}
+
+export interface UserMetadata {
+  user_id: string;
+  display_name: string;
+}
+
+export interface ProjectUserMetadataConfig {
+  version: number;
+  projects: ProjectMetadata[];
+  users: UserMetadata[];
+}

@@ -12,18 +12,18 @@ logger = get_logger(__name__)
 
 
 class ChannelRollupBuilder:
-    """channel_exports から日次・週次ロールアップを生成する"""
+    """channel_exports から project x user の日次・週次ロールアップを生成する"""
 
     def __init__(self, export_base_dir: Path, timezone: str = "Asia/Tokyo"):
         self.export_base_dir = export_base_dir
         self.timezone = timezone
         self.rollup_dir = self.export_base_dir / "_rollups"
-        self.classification_path = self.export_base_dir.parent / "channel_export" / "classification.json"
-        self.classification_config = FileHandler.read_json(self.classification_path) or {}
+        self.metadata_path = self.export_base_dir.parent / "channel_export" / "metadata.json"
+        self.metadata_config = FileHandler.read_json(self.metadata_path) or {}
         FileHandler.ensure_dir(self.rollup_dir)
 
     def rebuild_rollups(self) -> Dict[str, Any]:
-        self.classification_config = FileHandler.read_json(self.classification_path) or {}
+        self.metadata_config = FileHandler.read_json(self.metadata_path) or {}
         daily_rows, weekly_rows = self._aggregate_rows()
 
         generated_at = datetime.now().astimezone().isoformat()
@@ -43,7 +43,7 @@ class ChannelRollupBuilder:
         FileHandler.write_json(self.rollup_dir / "daily_rollup.json", daily_doc)
         FileHandler.write_json(self.rollup_dir / "weekly_rollup.json", weekly_doc)
         logger.info(
-            f"Rebuilt channel rollups: {len(daily_rows)} daily rows, {len(weekly_rows)} weekly rows"
+            f"Rebuilt project/user rollups: {len(daily_rows)} daily rows, {len(weekly_rows)} weekly rows"
         )
 
         return {
@@ -64,6 +64,7 @@ class ChannelRollupBuilder:
     def _aggregate_rows(self) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
         daily_agg: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
         weekly_agg: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+        display_name_map = self._user_display_name_map()
 
         for channel_dir in sorted(self.export_base_dir.iterdir()):
             if not channel_dir.is_dir() or channel_dir.name.startswith("_"):
@@ -86,49 +87,72 @@ class ChannelRollupBuilder:
                     if not date:
                         continue
 
-                    project_ids = msg.get("project_ids") or self._classify_message_fallback(
-                        msg=msg,
+                    user_id = (msg.get("user") or "").strip() or "unknown_user"
+                    user_name = display_name_map.get(user_id) or msg.get("user_name") or user_id
+                    project_ids = self._resolve_project_ids(
                         channel_id=channel_id,
-                        category="projects",
-                        default_ids=["unclassified_project"],
-                    )
-                    account_ids = msg.get("account_ids") or self._classify_message_fallback(
-                        msg=msg,
-                        channel_id=channel_id,
-                        category="accounts",
-                        default_ids=["unclassified_account"],
+                        text=msg.get("text", "") or "",
                     )
 
                     for project_id in project_ids:
-                        for account_id in account_ids:
-                            self._add_daily_message(
-                                daily_agg=daily_agg,
-                                date=date,
-                                project_id=project_id,
-                                account_id=account_id,
-                                channel_id=channel_id,
-                                channel_name=channel_name,
-                                msg=msg,
-                            )
-                            self._add_weekly_message(
-                                weekly_agg=weekly_agg,
-                                date=date,
-                                project_id=project_id,
-                                account_id=account_id,
-                                channel_id=channel_id,
-                                channel_name=channel_name,
-                                msg=msg,
-                            )
+                        self._add_daily_message(
+                            daily_agg=daily_agg,
+                            date=date,
+                            project_id=project_id,
+                            user_id=user_id,
+                            user_name=user_name,
+                            channel_id=channel_id,
+                            channel_name=channel_name,
+                            msg=msg,
+                        )
+                        self._add_weekly_message(
+                            weekly_agg=weekly_agg,
+                            date=date,
+                            project_id=project_id,
+                            user_id=user_id,
+                            user_name=user_name,
+                            channel_id=channel_id,
+                            channel_name=channel_name,
+                            msg=msg,
+                        )
 
-        daily_rows = self._serialize_daily_rows(daily_agg)
-        weekly_rows = self._serialize_weekly_rows(weekly_agg)
-        return daily_rows, weekly_rows
+        return self._serialize_daily_rows(daily_agg), self._serialize_weekly_rows(weekly_agg)
+
+    def _resolve_project_ids(self, channel_id: str, text: str) -> List[str]:
+        projects = self.metadata_config.get("projects", [])
+        text_lower = text.lower()
+        matched: List[str] = []
+
+        for project in projects:
+            project_id = (project.get("project_id") or "").strip()
+            if not project_id:
+                continue
+            target_channel_ids = project.get("target_channel_ids", [])
+            keywords = [k.strip().lower() for k in project.get("keywords", []) if k.strip()]
+
+            matched_by_channel = bool(channel_id and channel_id in target_channel_ids)
+            matched_by_keyword = any(keyword in text_lower for keyword in keywords)
+            if matched_by_channel or matched_by_keyword:
+                matched.append(project_id)
+
+        if matched:
+            return [v for v in dict.fromkeys(matched) if v]
+        return ["unassigned_project"]
+
+    def _user_display_name_map(self) -> Dict[str, str]:
+        users = self.metadata_config.get("users", [])
+        mapping: Dict[str, str] = {}
+        for user in users:
+            user_id = (user.get("user_id") or "").strip()
+            display_name = (user.get("display_name") or "").strip()
+            if user_id and display_name:
+                mapping[user_id] = display_name
+        return mapping
 
     def _resolve_date(self, msg: Dict[str, Any]) -> str:
         created_at = msg.get("created_at")
         if created_at and len(created_at) >= 10:
             return created_at[:10]
-
         ts = msg.get("ts")
         if ts:
             return datetime.fromtimestamp(float(ts)).strftime("%Y-%m-%d")
@@ -139,20 +163,21 @@ class ChannelRollupBuilder:
         daily_agg: Dict[Tuple[str, str, str], Dict[str, Any]],
         date: str,
         project_id: str,
-        account_id: str,
+        user_id: str,
+        user_name: str,
         channel_id: str,
         channel_name: str,
         msg: Dict[str, Any],
     ) -> None:
-        key = (date, project_id, account_id)
+        key = (date, project_id, user_id)
         if key not in daily_agg:
             daily_agg[key] = {
                 "date": date,
                 "project_id": project_id,
-                "account_id": account_id,
+                "user_id": user_id,
+                "display_name": user_name,
                 "message_count": 0,
                 "thread_ts_set": set(),
-                "participants_set": set(),
                 "channels_set": set(),
                 "highlights": [],
             }
@@ -160,10 +185,6 @@ class ChannelRollupBuilder:
         row = daily_agg[key]
         row["message_count"] += 1
         row["channels_set"].add(channel_id or channel_name)
-
-        user_id = msg.get("user") or msg.get("user_name")
-        if user_id:
-            row["participants_set"].add(user_id)
 
         thread_ts = msg.get("thread_ts") or msg.get("ts")
         if thread_ts:
@@ -185,22 +206,23 @@ class ChannelRollupBuilder:
         weekly_agg: Dict[Tuple[str, str, str], Dict[str, Any]],
         date: str,
         project_id: str,
-        account_id: str,
+        user_id: str,
+        user_name: str,
         channel_id: str,
         channel_name: str,
         msg: Dict[str, Any],
     ) -> None:
         week_start, week_end = self._week_range(date)
-        key = (week_start, project_id, account_id)
+        key = (week_start, project_id, user_id)
         if key not in weekly_agg:
             weekly_agg[key] = {
                 "week_start": week_start,
                 "week_end": week_end,
                 "project_id": project_id,
-                "account_id": account_id,
+                "user_id": user_id,
+                "display_name": user_name,
                 "message_count": 0,
                 "active_dates_set": set(),
-                "participants_set": set(),
                 "channels_set": set(),
                 "thread_scores": defaultdict(int),
             }
@@ -210,13 +232,8 @@ class ChannelRollupBuilder:
         row["active_dates_set"].add(date)
         row["channels_set"].add(channel_id or channel_name)
 
-        user_id = msg.get("user") or msg.get("user_name")
-        if user_id:
-            row["participants_set"].add(user_id)
-
         thread_ts = msg.get("thread_ts") or msg.get("ts")
         if thread_ts:
-            # 返信数が多いスレッドを週次の注目スレッドとして扱う
             row["thread_scores"][thread_ts] = max(
                 row["thread_scores"][thread_ts],
                 int(msg.get("reply_count", 0) or 0),
@@ -237,16 +254,16 @@ class ChannelRollupBuilder:
                 {
                     "date": row["date"],
                     "project_id": row["project_id"],
-                    "account_id": row["account_id"],
+                    "user_id": row["user_id"],
+                    "display_name": row["display_name"],
                     "message_count": row["message_count"],
                     "thread_count": len(row["thread_ts_set"]),
-                    "participants": sorted(row["participants_set"]),
                     "channels": sorted(row["channels_set"]),
                     "highlights": highlights,
                 }
             )
 
-        rows.sort(key=lambda r: (r["date"], r["project_id"], r["account_id"]))
+        rows.sort(key=lambda r: (r["date"], r["project_id"], r["user_id"]))
         return rows
 
     def _serialize_weekly_rows(self, weekly_agg: Dict[Tuple[str, str, str], Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -263,10 +280,10 @@ class ChannelRollupBuilder:
                     "week_start": row["week_start"],
                     "week_end": row["week_end"],
                     "project_id": row["project_id"],
-                    "account_id": row["account_id"],
+                    "user_id": row["user_id"],
+                    "display_name": row["display_name"],
                     "message_count": row["message_count"],
                     "active_days": len(row["active_dates_set"]),
-                    "participants": sorted(row["participants_set"]),
                     "channels": sorted(row["channels_set"]),
                     "top_threads": [
                         {"thread_ts": thread_ts, "reply_count": score}
@@ -275,7 +292,7 @@ class ChannelRollupBuilder:
                 }
             )
 
-        rows.sort(key=lambda r: (r["week_start"], r["project_id"], r["account_id"]))
+        rows.sort(key=lambda r: (r["week_start"], r["project_id"], r["user_id"]))
         return rows
 
     def _week_range(self, date_str: str) -> Tuple[str, str]:
@@ -284,44 +301,3 @@ class ChannelRollupBuilder:
         week_end = week_start + timedelta(days=6)
         return week_start.isoformat(), week_end.isoformat()
 
-    def _classify_message_fallback(
-        self,
-        msg: Dict[str, Any],
-        channel_id: str,
-        category: str,
-        default_ids: List[str],
-    ) -> List[str]:
-        config = self.classification_config
-        definitions = config.get(category, [])
-        defaults = config.get("defaults", {})
-        category_default_ids = defaults.get(
-            "project_ids" if category == "projects" else "account_ids",
-            default_ids,
-        )
-
-        text = (msg.get("text") or "").lower()
-        user_id = (msg.get("user") or "").strip()
-        matched_ids: List[str] = []
-
-        for item in definitions:
-            match = item.get("match", {})
-            channels = match.get("channels", [])
-            keywords = match.get("keywords", [])
-            users = match.get("users", [])
-
-            if channel_id and channel_id in channels:
-                matched_ids.append(item.get("id"))
-                continue
-            if user_id and user_id in users:
-                matched_ids.append(item.get("id"))
-                continue
-            for keyword in keywords:
-                keyword_normalized = (keyword or "").strip().lower()
-                if keyword_normalized and keyword_normalized in text:
-                    matched_ids.append(item.get("id"))
-                    break
-
-        normalized = [v for v in dict.fromkeys(matched_ids) if v]
-        if normalized:
-            return normalized
-        return [v for v in dict.fromkeys(category_default_ids) if v] or default_ids

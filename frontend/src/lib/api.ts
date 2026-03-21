@@ -21,6 +21,7 @@ import type {
   ExportChannel,
   ChannelExportConfig,
   ChannelExportStatus,
+  ProjectUserMetadataConfig,
 } from '../types';
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
@@ -355,6 +356,26 @@ export const channelExportApi = {
   // ステータス取得
   getStatus: async (): Promise<ChannelExportStatus> => {
     const response = await api.get<ChannelExportStatus>('/api/channel-export/status');
+    return response.data;
+  },
+
+  // project/user設定取得
+  getMetadataConfig: async (): Promise<ProjectUserMetadataConfig> => {
+    const response = await api.get<ProjectUserMetadataConfig>('/api/channel-export/config/metadata');
+    return response.data;
+  },
+
+  // project/user設定更新
+  updateMetadataConfig: async (
+    config: ProjectUserMetadataConfig
+  ): Promise<ProjectUserMetadataConfig> => {
+    const response = await api.put<ProjectUserMetadataConfig>('/api/channel-export/config/metadata', config);
+    return response.data;
+  },
+
+  // user display_name 再取得
+  refreshUserDisplayNames: async (): Promise<ProjectUserMetadataConfig> => {
+    const response = await api.post<ProjectUserMetadataConfig>('/api/channel-export/config/metadata/users/refresh-display-names');
     return response.data;
   },
 };
